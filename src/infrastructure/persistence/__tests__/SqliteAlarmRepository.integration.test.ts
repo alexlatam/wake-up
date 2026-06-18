@@ -23,7 +23,8 @@ function createTestDb() {
       days TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      ringtone_uri TEXT
     );
     CREATE TABLE IF NOT EXISTS alarm_actions (
       id TEXT PRIMARY KEY,
@@ -128,5 +129,101 @@ describe('SqliteAlarmRepository (integration)', () => {
     expect(found!.schedule.hour).toBe(7);
     expect(found!.schedule.minute).toBe(0);
     expect([...found!.schedule.days].sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  describe('ringtoneUri', () => {
+    it('saves and retrieves null ringtoneUri', async () => {
+      const alarm = new Alarm({
+        id: 'alarm-rt-null',
+        label: 'No ringtone',
+        schedule: new Schedule([1, 2, 3, 4, 5], 7, 0),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+        ringtoneUri: null,
+      });
+      await repo.save(alarm);
+      const found = await repo.findById('alarm-rt-null');
+      expect(found!.ringtoneUri).toBeNull();
+    });
+
+    it('saves and retrieves a custom ringtoneUri', async () => {
+      const alarm = new Alarm({
+        id: 'alarm-rt-custom',
+        label: 'Custom ringtone',
+        schedule: new Schedule([1, 2, 3, 4, 5], 7, 0),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+        ringtoneUri: 'file:///storage/emulated/0/Music/song.mp3',
+      });
+      await repo.save(alarm);
+      const found = await repo.findById('alarm-rt-custom');
+      expect(found!.ringtoneUri).toBe('file:///storage/emulated/0/Music/song.mp3');
+    });
+
+    it('updates ringtoneUri from null to a value', async () => {
+      await repo.save(makeAlarm());
+      const updated = new Alarm({
+        id: 'alarm-1',
+        label: 'Morning',
+        schedule: new Schedule([1, 2, 3, 4, 5], 7, 0),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-06-01T00:00:00Z'),
+        ringtoneUri: 'file:///storage/music/new.mp3',
+      });
+      await repo.save(updated);
+      const found = await repo.findById('alarm-1');
+      expect(found!.ringtoneUri).toBe('file:///storage/music/new.mp3');
+    });
+
+    it('clears ringtoneUri back to null on update', async () => {
+      const withRingtone = new Alarm({
+        id: 'alarm-1',
+        label: 'Morning',
+        schedule: new Schedule([1, 2, 3, 4, 5], 7, 0),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+        ringtoneUri: 'file:///storage/music/song.mp3',
+      });
+      await repo.save(withRingtone);
+
+      const cleared = new Alarm({
+        id: 'alarm-1',
+        label: 'Morning',
+        schedule: new Schedule([1, 2, 3, 4, 5], 7, 0),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-06-01T00:00:00Z'),
+        ringtoneUri: null,
+      });
+      await repo.save(cleared);
+
+      const found = await repo.findById('alarm-1');
+      expect(found!.ringtoneUri).toBeNull();
+    });
+
+    it('ringtoneUri is included in findAll results', async () => {
+      const alarm = new Alarm({
+        id: 'alarm-1',
+        label: 'Morning',
+        schedule: new Schedule([1, 2, 3, 4, 5], 7, 0),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+        ringtoneUri: 'file:///storage/music/song.mp3',
+      });
+      await repo.save(alarm);
+      const all = await repo.findAll();
+      expect(all[0].ringtoneUri).toBe('file:///storage/music/song.mp3');
+    });
   });
 });

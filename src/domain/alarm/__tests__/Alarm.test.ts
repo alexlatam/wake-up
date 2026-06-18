@@ -59,6 +59,32 @@ describe('Alarm', () => {
     });
   });
 
+  describe('ringtoneUri', () => {
+    it('defaults to null when not provided', () => {
+      const alarm = new Alarm({
+        id: 'x',
+        label: 'X',
+        schedule: makeSchedule(),
+        enabled: true,
+        actions: [{ type: 'BUTTON', position: 0 }],
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        ringtoneUri: undefined as unknown as null,
+      });
+      expect(alarm.ringtoneUri).toBeNull();
+    });
+
+    it('stores provided ringtoneUri', () => {
+      const alarm = makeAlarm({ ringtoneUri: 'file:///storage/music/song.mp3' });
+      expect(alarm.ringtoneUri).toBe('file:///storage/music/song.mp3');
+    });
+
+    it('stores null when explicitly set to null', () => {
+      const alarm = makeAlarm({ ringtoneUri: null });
+      expect(alarm.ringtoneUri).toBeNull();
+    });
+  });
+
   describe('withEnabled', () => {
     it('returns new alarm with updated enabled flag', () => {
       const alarm = makeAlarm({ enabled: true });
@@ -67,12 +93,13 @@ describe('Alarm', () => {
       expect(alarm.enabled).toBe(true); // original unchanged
     });
 
-    it('preserves all other fields', () => {
-      const alarm = makeAlarm();
+    it('preserves all other fields including ringtoneUri', () => {
+      const alarm = makeAlarm({ ringtoneUri: 'file:///storage/music/song.mp3' });
       const toggled = alarm.withEnabled(false);
       expect(toggled.id).toBe(alarm.id);
       expect(toggled.label).toBe(alarm.label);
       expect(toggled.actions).toEqual(alarm.actions);
+      expect(toggled.ringtoneUri).toBe('file:///storage/music/song.mp3');
     });
 
     it('updates updatedAt', () => {

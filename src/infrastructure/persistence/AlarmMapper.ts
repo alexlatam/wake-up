@@ -23,6 +23,7 @@ export const AlarmMapper = {
       actions,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      ringtoneUri: row.ringtoneUri ?? null,
     });
   },
 
@@ -36,6 +37,7 @@ export const AlarmMapper = {
       enabled: alarm.enabled,
       createdAt: alarm.createdAt,
       updatedAt: alarm.updatedAt,
+      ringtoneUri: alarm.ringtoneUri,
     };
   },
 

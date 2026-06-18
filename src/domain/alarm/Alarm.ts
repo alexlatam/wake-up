@@ -10,6 +10,7 @@ export interface AlarmProps {
   actions: ActionConfig[];
   createdAt: Date;
   updatedAt: Date;
+  ringtoneUri: string | null;
 }
 
 export class Alarm {
@@ -20,6 +21,7 @@ export class Alarm {
   readonly actions: ReadonlyArray<ActionConfig>;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly ringtoneUri: string | null;
 
   constructor(props: AlarmProps) {
     if (props.actions.length === 0) {
@@ -33,6 +35,7 @@ export class Alarm {
     this.actions = [...props.actions].sort((a, b) => a.position - b.position);
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
+    this.ringtoneUri = props.ringtoneUri ?? null;
   }
 
   private validatePositions(actions: ActionConfig[]): void {
@@ -57,6 +60,7 @@ export class Alarm {
       actions: [...this.actions],
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      ringtoneUri: this.ringtoneUri,
     };
   }
 }

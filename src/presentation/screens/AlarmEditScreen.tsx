@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAlarms } from '@/presentation/hooks/useAlarms';
 import { getContainer } from '@/infrastructure/di/container';
 import type { ActionConfig, MathLevel, PuzzleLevel, Weekday } from '@/domain/alarm/Action';
@@ -305,6 +306,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
   const [hour, setHour] = useState(7);
   const [minute, setMinute] = useState(0);
   const [actions, setActions] = useState<DraftAction[]>([{ type: 'BUTTON' }]);
+  const [ringtoneUri, setRingtoneUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -316,6 +318,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
       setDays(new Set(a.schedule.days));
       setHour(a.schedule.hour);
       setMinute(a.schedule.minute);
+      setRingtoneUri(a.ringtoneUri);
       setActions(
         a.actions.map((ac): DraftAction => {
           if (ac.type === 'BUTTON') return { type: 'BUTTON' };
@@ -331,6 +334,13 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarmId]);
+
+  async function pickRingtone() {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
+    if (!result.canceled && result.assets.length > 0) {
+      setRingtoneUri(result.assets[0].uri);
+    }
+  }
 
   function moveAction(from: number, to: number) {
     const next = [...actions];
@@ -379,6 +389,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
           hour,
           minute,
           actions: actionConfigs,
+          ringtoneUri,
         });
       } else {
         await create({
@@ -387,6 +398,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
           hour,
           minute,
           actions: actionConfigs,
+          ringtoneUri,
         });
       }
       router.back();
@@ -432,6 +444,46 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
         <SectionLabel>Repeat</SectionLabel>
         <View className="rounded-2xl border border-border bg-card p-4">
           <DayPicker selected={days} onChange={setDays} />
+        </View>
+      </View>
+
+      {/* Ringtone */}
+      <View className="mb-6">
+        <SectionLabel>Ringtone</SectionLabel>
+        <View className="overflow-hidden rounded-2xl border border-border bg-card">
+          <View className="flex-row items-center justify-between px-4 py-3.5">
+            <View className="flex-1 mr-3">
+              <Text className="text-sm font-medium text-foreground">
+                {ringtoneUri
+                  ? ringtoneUri.split('/').pop()?.split('?')[0] ?? 'Custom ringtone'
+                  : 'Default alarm sound'}
+              </Text>
+              {ringtoneUri && (
+                <Text className="mt-0.5 text-xs text-muted-foreground">Custom</Text>
+              )}
+              {!ringtoneUri && (
+                <Text className="mt-0.5 text-xs text-muted-foreground">System alarm</Text>
+              )}
+            </View>
+            <View className="flex-row gap-2">
+              {ringtoneUri && (
+                <Pressable
+                  onPress={() => setRingtoneUri(null)}
+                  className="rounded-lg bg-muted px-3 py-1.5"
+                >
+                  <Text className="text-xs font-semibold text-muted-foreground">Reset</Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={pickRingtone}
+                className="rounded-lg bg-primary px-3 py-1.5"
+              >
+                <Text className="text-xs font-semibold text-primary-foreground">
+                  {ringtoneUri ? 'Change' : 'Pick'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </View>
 

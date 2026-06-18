@@ -11,6 +11,7 @@ export interface CreateAlarmInput {
   hour: number;
   minute: number;
   actions: ActionConfig[];
+  ringtoneUri?: string | null;
 }
 
 export class CreateAlarm {
@@ -30,6 +31,7 @@ export class CreateAlarm {
       actions: input.actions,
       createdAt: now,
       updatedAt: now,
+      ringtoneUri: input.ringtoneUri ?? null,
     });
     await this.alarmRepository.save(alarm);
     return alarm;

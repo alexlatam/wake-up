@@ -12,6 +12,7 @@ export interface UpdateAlarmInput {
   hour: number;
   minute: number;
   actions: ActionConfig[];
+  ringtoneUri?: string | null;
 }
 
 export class UpdateAlarm {
@@ -32,6 +33,7 @@ export class UpdateAlarm {
       actions: input.actions,
       createdAt: existing.createdAt,
       updatedAt: this.clock.now(),
+      ringtoneUri: input.ringtoneUri !== undefined ? input.ringtoneUri : existing.ringtoneUri,
     });
     await this.alarmRepository.save(updated);
     return updated;

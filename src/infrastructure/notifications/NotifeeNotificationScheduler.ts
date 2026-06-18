@@ -17,7 +17,7 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
     if (this.channelReady) return;
     await notifee.createChannel({
       id: CHANNEL_ID,
-      name: 'Alarmas WakeUp',
+      name: 'WakeUp Alarms',
       importance: AndroidImportance.HIGH,
       bypassDnd: true,
       vibration: true,
@@ -41,13 +41,20 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
     await notifee.createTriggerNotification(
       {
         id: `alarm-${alarm.id}`,
-        title: 'WakeUp',
-        body: alarm.label || 'Es hora de levantarse',
+        title: 'WakeUp Alarm',
+        body: alarm.label || 'Time to wake up!',
         android: {
           channelId: CHANNEL_ID,
           category: AndroidCategory.ALARM,
           importance: AndroidImportance.HIGH,
+          // fullScreenAction launches MainActivity over the lockscreen.
+          // showWhenLocked + turnScreenOn must be set in AndroidManifest (notifee.plugin.js).
           fullScreenAction: {
+            id: 'default',
+          },
+          // pressAction makes the heads-up notification tappable (when screen is on/unlocked).
+          // Also required for getInitialNotification() to return on tap-launch.
+          pressAction: {
             id: 'default',
           },
         },

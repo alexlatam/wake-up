@@ -31,4 +31,11 @@ export async function initDatabase(): Promise<void> {
       status TEXT NOT NULL DEFAULT 'RINGING'
     );
   `);
+
+  // v2: add ringtone_uri to existing alarms table (safe on fresh installs — column already exists)
+  await expo.execAsync(`
+    ALTER TABLE alarms ADD COLUMN ringtone_uri TEXT;
+  `).catch(() => {
+    // Column already exists — ignore "duplicate column" error
+  });
 }

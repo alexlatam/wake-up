@@ -45,6 +45,44 @@ describe('CreateAlarm', () => {
     ).rejects.toThrow(InvalidActionsError);
   });
 
+  it('defaults ringtoneUri to null when not provided', async () => {
+    const uc = new CreateAlarm(mockRepo(), mockId(), mockClock());
+    const alarm = await uc.execute({
+      label: 'Test',
+      days: [1],
+      hour: 8,
+      minute: 0,
+      actions: [{ type: 'BUTTON', position: 0 }],
+    });
+    expect(alarm.ringtoneUri).toBeNull();
+  });
+
+  it('stores provided ringtoneUri', async () => {
+    const uc = new CreateAlarm(mockRepo(), mockId(), mockClock());
+    const alarm = await uc.execute({
+      label: 'Test',
+      days: [1],
+      hour: 8,
+      minute: 0,
+      actions: [{ type: 'BUTTON', position: 0 }],
+      ringtoneUri: 'file:///storage/music/song.mp3',
+    });
+    expect(alarm.ringtoneUri).toBe('file:///storage/music/song.mp3');
+  });
+
+  it('stores null ringtoneUri when explicitly passed', async () => {
+    const uc = new CreateAlarm(mockRepo(), mockId(), mockClock());
+    const alarm = await uc.execute({
+      label: 'Test',
+      days: [1],
+      hour: 8,
+      minute: 0,
+      actions: [{ type: 'BUTTON', position: 0 }],
+      ringtoneUri: null,
+    });
+    expect(alarm.ringtoneUri).toBeNull();
+  });
+
   it('assigns createdAt and updatedAt from clock', async () => {
     const now = new Date('2024-06-01T08:00:00Z');
     const uc = new CreateAlarm(mockRepo(), mockId(), mockClock(now));
