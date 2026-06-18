@@ -90,17 +90,17 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView className="flex-1">
+    <GestureHandlerRootView className="dark flex-1">
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: theme.bg },
-          headerTintColor: theme.text,
+          headerStyle: { backgroundColor: '#0a160c' },
+          headerTintColor: '#e8f5e8',
           headerShadowVisible: false,
-          contentStyle: { backgroundColor: theme.bg },
+          contentStyle: { backgroundColor: '#0a160c' },
         }}
       >
         <Stack.Screen name="index" options={{ title: 'WakeUp' }} />
-        <Stack.Screen name="alarm/[id]" options={{ title: 'Alarma' }} />
+        <Stack.Screen name="alarm/[id]" options={{ title: 'Alarm' }} />
         <Stack.Screen
           name="ringing"
           options={{
