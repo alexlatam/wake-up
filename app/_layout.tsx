@@ -1,6 +1,6 @@
 import '../global.css';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, useColorScheme, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, ActivityIndicator, useColorScheme, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import notifee, { EventType } from '@notifee/react-native';
@@ -26,6 +26,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const theme = isDark ? COLORS.dark : COLORS.light;
+  const appState = useRef(AppState.currentState);
 
   // Initialise persistence, DI, sync alarms.
   useEffect(() => {
@@ -78,7 +79,23 @@ export default function RootLayout() {
       }
     });
 
-    return () => unsub();
+    // When app returns to foreground from background (e.g. via full-screen intent),
+    // check for an active session that the background handler may have started.
+    const appStateSub = AppState.addEventListener('change', async (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        const { alarmSessionRepository } = getContainer();
+        const active = await alarmSessionRepository.findActive();
+        if (active) {
+          router.replace(`/ringing?alarmId=${active.alarmId}`);
+        }
+      }
+      appState.current = nextState;
+    });
+
+    return () => {
+      unsub();
+      appStateSub.remove();
+    };
   }, [ready, router]);
 
   if (!ready) {

@@ -5,6 +5,7 @@ import { CreateAlarm, type CreateAlarmInput } from '@/application/use-cases/Crea
 import { UpdateAlarm, type UpdateAlarmInput } from '@/application/use-cases/UpdateAlarm';
 import { DeleteAlarm } from '@/application/use-cases/DeleteAlarm';
 import { ToggleAlarm } from '@/application/use-cases/ToggleAlarm';
+import { SyncAlarms } from '@/application/use-cases/SyncAlarms';
 import type { Alarm } from '@/domain/alarm/Alarm';
 
 export function useAlarms() {
@@ -29,40 +30,49 @@ export function useAlarms() {
     refresh();
   }, [refresh]);
 
+  const sync = useCallback(async () => {
+    const { alarmRepository, notificationScheduler } = getContainer();
+    await new SyncAlarms(alarmRepository, notificationScheduler).execute();
+  }, []);
+
   const create = useCallback(
     async (input: CreateAlarmInput) => {
       const { alarmRepository, idGenerator, clock } = getContainer();
       await new CreateAlarm(alarmRepository, idGenerator, clock).execute(input);
+      await sync();
       await refresh();
     },
-    [refresh],
+    [sync, refresh],
   );
 
   const update = useCallback(
     async (input: UpdateAlarmInput) => {
       const { alarmRepository, clock } = getContainer();
       await new UpdateAlarm(alarmRepository, clock).execute(input);
+      await sync();
       await refresh();
     },
-    [refresh],
+    [sync, refresh],
   );
 
   const toggle = useCallback(
     async (id: string) => {
       const { alarmRepository } = getContainer();
       await new ToggleAlarm(alarmRepository).execute(id);
+      await sync();
       await refresh();
     },
-    [refresh],
+    [sync, refresh],
   );
 
   const remove = useCallback(
     async (id: string) => {
       const { alarmRepository } = getContainer();
       await new DeleteAlarm(alarmRepository).execute(id);
+      await sync();
       await refresh();
     },
-    [refresh],
+    [sync, refresh],
   );
 
   const getById = useCallback((id: string) => {
