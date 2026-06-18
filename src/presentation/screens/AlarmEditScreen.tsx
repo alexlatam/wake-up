@@ -12,7 +12,6 @@ import { useAlarms } from '@/presentation/hooks/useAlarms';
 import { getContainer } from '@/infrastructure/di/container';
 import type { ActionConfig, MathLevel, PuzzleLevel, Weekday } from '@/domain/alarm/Action';
 import { Text } from '~/components/ui/text';
-import { Button } from '~/components/ui/button';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -24,30 +23,40 @@ type DraftAction =
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const WEEKDAY_LABELS: { day: Weekday; short: string }[] = [
-  { day: 0, short: 'Do' },
-  { day: 1, short: 'Lu' },
-  { day: 2, short: 'Ma' },
-  { day: 3, short: 'Mi' },
-  { day: 4, short: 'Ju' },
-  { day: 5, short: 'Vi' },
-  { day: 6, short: 'Sá' },
+  { day: 0, short: 'Su' },
+  { day: 1, short: 'Mo' },
+  { day: 2, short: 'Tu' },
+  { day: 3, short: 'We' },
+  { day: 4, short: 'Th' },
+  { day: 5, short: 'Fr' },
+  { day: 6, short: 'Sa' },
 ];
 
 const MATH_LEVELS: MathLevel[] = ['MINIMO', 'MEDIO', 'MAXIMO', 'EXTREMO'];
 const PUZZLE_LEVELS: PuzzleLevel[] = ['MINIMO', 'MEDIO', 'MAXIMO'];
 const PUZZLE_LEVEL_LABELS: Record<PuzzleLevel, string> = {
-  MINIMO: '6 piezas',
-  MEDIO: '12 piezas',
-  MAXIMO: '36 piezas',
+  MINIMO: '6 tiles',
+  MEDIO: '12 tiles',
+  MAXIMO: '36 tiles',
 };
 const MATH_LEVEL_LABELS: Record<MathLevel, string> = {
-  MINIMO: 'Fácil',
-  MEDIO: 'Medio',
-  MAXIMO: 'Difícil',
-  EXTREMO: 'Extremo',
+  MINIMO: 'Easy',
+  MEDIO: 'Medium',
+  MAXIMO: 'Hard',
+  EXTREMO: 'Extreme',
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Section label ────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+      {children}
+    </Text>
+  );
+}
+
+// ─── Day picker ───────────────────────────────────────────────────────────────
 
 function DayPicker({
   selected,
@@ -66,23 +75,55 @@ function DayPicker({
     onChange(next);
   }
   return (
-    <View className="flex-row gap-2">
+    <View className="flex-row justify-between">
       {WEEKDAY_LABELS.map(({ day, short }) => {
         const active = selected.has(day);
         return (
           <Pressable
             key={day}
             onPress={() => toggle(day)}
-            className={`h-10 w-10 items-center justify-center rounded-full ${
+            className={`h-11 w-11 items-center justify-center rounded-xl ${
               active ? 'bg-primary' : 'bg-muted'
             }`}
           >
-            <Text className={`text-xs font-semibold ${active ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
+            <Text className={`text-xs font-bold ${active ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
               {short}
             </Text>
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+// ─── Time picker ─────────────────────────────────────────────────────────────
+
+function TimeSpinner({
+  value,
+  max,
+  onChange,
+}: {
+  value: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <View className="items-center">
+      <Pressable
+        onPress={() => onChange((value + 1) % (max + 1))}
+        className="px-4 py-2 active:opacity-50"
+      >
+        <Text className="text-2xl text-primary">▲</Text>
+      </Pressable>
+      <Text className="w-16 text-center text-5xl font-bold tabular-nums text-foreground">
+        {String(value).padStart(2, '0')}
+      </Text>
+      <Pressable
+        onPress={() => onChange((value + max) % (max + 1))}
+        className="px-4 py-2 active:opacity-50"
+      >
+        <Text className="text-2xl text-primary">▼</Text>
+      </Pressable>
     </View>
   );
 }
@@ -99,43 +140,34 @@ function TimePicker({
   onMinuteChange: (m: number) => void;
 }) {
   return (
-    <View className="flex-row items-center gap-4">
-      <View className="items-center">
-        <Pressable
-          className="p-2"
-          onPress={() => onHourChange((hour + 1) % 24)}
-        >
-          <Text className="text-2xl text-primary">▲</Text>
-        </Pressable>
-        <Text className="w-12 text-center text-4xl font-bold">
-          {String(hour).padStart(2, '0')}
-        </Text>
-        <Pressable
-          className="p-2"
-          onPress={() => onHourChange((hour + 23) % 24)}
-        >
-          <Text className="text-2xl text-primary">▼</Text>
-        </Pressable>
-      </View>
-      <Text className="text-4xl font-bold text-muted-foreground">:</Text>
-      <View className="items-center">
-        <Pressable
-          className="p-2"
-          onPress={() => onMinuteChange((minute + 1) % 60)}
-        >
-          <Text className="text-2xl text-primary">▲</Text>
-        </Pressable>
-        <Text className="w-12 text-center text-4xl font-bold">
-          {String(minute).padStart(2, '0')}
-        </Text>
-        <Pressable
-          className="p-2"
-          onPress={() => onMinuteChange((minute + 59) % 60)}
-        >
-          <Text className="text-2xl text-primary">▼</Text>
-        </Pressable>
-      </View>
+    <View className="flex-row items-center justify-center gap-2">
+      <TimeSpinner value={hour} max={23} onChange={onHourChange} />
+      <Text className="mb-1 text-5xl font-bold text-muted-foreground">:</Text>
+      <TimeSpinner value={minute} max={59} onChange={onMinuteChange} />
     </View>
+  );
+}
+
+// ─── Action row ───────────────────────────────────────────────────────────────
+
+function ChipButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-lg px-3 py-1.5 ${active ? 'bg-primary' : 'bg-muted'}`}
+    >
+      <Text className={`text-xs font-semibold ${active ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -159,7 +191,7 @@ function ActionRow({
   async function pickImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Se necesita acceso a la galería para seleccionar una imagen.');
+      Alert.alert('Permission required', 'Gallery access is needed to select an image.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -173,98 +205,91 @@ function ActionRow({
   }
 
   return (
-    <View className="mb-3 rounded-lg border border-border bg-background p-3">
-      {/* Header: order controls + delete */}
-      <View className="mb-2 flex-row items-center justify-between">
-        <View className="flex-row gap-2">
-          <Pressable
-            disabled={index === 0}
-            onPress={onMoveUp}
-            className={`rounded px-2 py-1 ${index === 0 ? 'opacity-30' : 'bg-muted'}`}
-          >
-            <Text className="text-xs">↑</Text>
-          </Pressable>
-          <Pressable
-            disabled={index === total - 1}
-            onPress={onMoveDown}
-            className={`rounded px-2 py-1 ${index === total - 1 ? 'opacity-30' : 'bg-muted'}`}
-          >
-            <Text className="text-xs">↓</Text>
-          </Pressable>
-          <Text className="py-1 text-xs text-muted-foreground">Reto {index + 1}</Text>
-        </View>
-        <Pressable onPress={onDelete}>
-          <Text className="text-sm text-destructive">✕</Text>
-        </Pressable>
-      </View>
-
-      {/* Type selector */}
-      <View className="mb-2 flex-row gap-2">
-        {(['BUTTON', 'MATH', 'PUZZLE'] as const).map((t) => (
-          <Pressable
-            key={t}
-            onPress={() => {
-              if (t === 'BUTTON') onChange({ type: 'BUTTON' });
-              if (t === 'MATH') onChange({ type: 'MATH', level: 'MINIMO' });
-              if (t === 'PUZZLE') onChange({ type: 'PUZZLE', level: 'MINIMO', imageUri: null });
-            }}
-            className={`flex-1 rounded py-1.5 ${action.type === t ? 'bg-primary' : 'bg-muted'}`}
-          >
-            <Text
-              className={`text-center text-xs font-medium ${
-                action.type === t ? 'text-primary-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              {t}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Level selector for MATH */}
-      {action.type === 'MATH' && (
-        <View className="flex-row flex-wrap gap-2">
-          {MATH_LEVELS.map((level) => (
-            <Pressable
-              key={level}
-              onPress={() => onChange({ type: 'MATH', level })}
-              className={`rounded px-2 py-1 ${action.level === level ? 'bg-primary' : 'bg-muted'}`}
-            >
-              <Text
-                className={`text-xs ${action.level === level ? 'text-primary-foreground' : 'text-muted-foreground'}`}
-              >
-                {MATH_LEVEL_LABELS[level]}
-              </Text>
+    <View className="mb-3 overflow-hidden rounded-2xl border border-border bg-card">
+      {/* Header */}
+      <View className="flex-row items-center justify-between border-b border-border bg-muted/40 px-4 py-2.5">
+        <Text className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Challenge {index + 1}
+        </Text>
+        <View className="flex-row items-center gap-2">
+          {index > 0 && (
+            <Pressable onPress={onMoveUp} className="rounded-lg bg-muted px-2 py-1">
+              <Text className="text-xs font-bold text-muted-foreground">UP</Text>
             </Pressable>
+          )}
+          {index < total - 1 && (
+            <Pressable onPress={onMoveDown} className="rounded-lg bg-muted px-2 py-1">
+              <Text className="text-xs font-bold text-muted-foreground">DN</Text>
+            </Pressable>
+          )}
+          <Pressable onPress={onDelete} className="rounded-lg bg-destructive/10 px-2 py-1">
+            <Text className="text-xs font-bold text-destructive">X</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View className="p-4">
+        {/* Type selector */}
+        <View className="mb-3 flex-row gap-2">
+          {(['BUTTON', 'MATH', 'PUZZLE'] as const).map((t) => (
+            <ChipButton
+              key={t}
+              label={t}
+              active={action.type === t}
+              onPress={() => {
+                if (t === 'BUTTON') onChange({ type: 'BUTTON' });
+                if (t === 'MATH') onChange({ type: 'MATH', level: 'MINIMO' });
+                if (t === 'PUZZLE') onChange({ type: 'PUZZLE', level: 'MINIMO', imageUri: null });
+              }}
+            />
           ))}
         </View>
-      )}
 
-      {/* Level + image for PUZZLE */}
-      {action.type === 'PUZZLE' && (
-        <>
-          <View className="mb-2 flex-row flex-wrap gap-2">
-            {PUZZLE_LEVELS.map((level) => (
-              <Pressable
+        {/* MATH levels */}
+        {action.type === 'MATH' && (
+          <View className="flex-row flex-wrap gap-2">
+            {MATH_LEVELS.map((level) => (
+              <ChipButton
                 key={level}
-                onPress={() => onChange({ ...action, level })}
-                className={`rounded px-2 py-1 ${action.level === level ? 'bg-primary' : 'bg-muted'}`}
-              >
-                <Text
-                  className={`text-xs ${action.level === level ? 'text-primary-foreground' : 'text-muted-foreground'}`}
-                >
-                  {PUZZLE_LEVEL_LABELS[level]}
-                </Text>
-              </Pressable>
+                label={MATH_LEVEL_LABELS[level]}
+                active={action.level === level}
+                onPress={() => onChange({ type: 'MATH', level })}
+              />
             ))}
           </View>
-          <Pressable onPress={pickImage} className="rounded bg-muted px-3 py-2">
-            <Text className="text-center text-xs text-muted-foreground">
-              {action.imageUri ? '📷 Cambiar imagen' : '📷 Seleccionar imagen (opcional)'}
-            </Text>
-          </Pressable>
-        </>
-      )}
+        )}
+
+        {/* PUZZLE levels + image */}
+        {action.type === 'PUZZLE' && (
+          <>
+            <View className="mb-3 flex-row flex-wrap gap-2">
+              {PUZZLE_LEVELS.map((level) => (
+                <ChipButton
+                  key={level}
+                  label={PUZZLE_LEVEL_LABELS[level]}
+                  active={action.level === level}
+                  onPress={() => onChange({ ...action, level })}
+                />
+              ))}
+            </View>
+            <Pressable
+              onPress={pickImage}
+              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+            >
+              <Text className="text-center text-sm text-muted-foreground">
+                {action.imageUri ? '📷  Change image' : '📷  Choose image (optional)'}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* BUTTON description */}
+        {action.type === 'BUTTON' && (
+          <Text className="text-sm text-muted-foreground">
+            Press a button to complete this challenge.
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -282,40 +307,27 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
   const [actions, setActions] = useState<DraftAction[]>([{ type: 'BUTTON' }]);
   const [saving, setSaving] = useState(false);
 
-  // Load existing alarm
   useEffect(() => {
     if (!alarmId) return;
     const alarm = getById(alarmId);
-    if (!alarm) {
-      // Fetch from repo directly if not in cache
-      getContainer()
-        .alarmRepository.findById(alarmId)
-        .then((a) => {
-          if (!a) return;
-          setLabel(a.label);
-          setDays(new Set(a.schedule.days));
-          setHour(a.schedule.hour);
-          setMinute(a.schedule.minute);
-          setActions(
-            a.actions.map((ac): DraftAction => {
-              if (ac.type === 'BUTTON') return { type: 'BUTTON' };
-              if (ac.type === 'MATH') return { type: 'MATH', level: ac.level };
-              return { type: 'PUZZLE', level: ac.level, imageUri: ac.imageUri };
-            }),
-          );
-        });
-    } else {
-      setLabel(alarm.label);
-      setDays(new Set(alarm.schedule.days));
-      setHour(alarm.schedule.hour);
-      setMinute(alarm.schedule.minute);
+    const load = (a: typeof alarm) => {
+      if (!a) return;
+      setLabel(a.label);
+      setDays(new Set(a.schedule.days));
+      setHour(a.schedule.hour);
+      setMinute(a.schedule.minute);
       setActions(
-        alarm.actions.map((ac): DraftAction => {
+        a.actions.map((ac): DraftAction => {
           if (ac.type === 'BUTTON') return { type: 'BUTTON' };
           if (ac.type === 'MATH') return { type: 'MATH', level: ac.level };
           return { type: 'PUZZLE', level: ac.level, imageUri: ac.imageUri };
         }),
       );
+    };
+    if (alarm) {
+      load(alarm);
+    } else {
+      getContainer().alarmRepository.findById(alarmId).then(load);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarmId]);
@@ -333,7 +345,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
 
   function deleteAction(index: number) {
     if (actions.length === 1) {
-      Alert.alert('Error', 'Una alarma debe tener al menos un reto.');
+      Alert.alert('Cannot remove', 'An alarm needs at least one challenge.');
       return;
     }
     setActions(actions.filter((_, i) => i !== index));
@@ -347,7 +359,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
 
   async function handleSave() {
     if (!days.size) {
-      Alert.alert('Error', 'Selecciona al menos un día.');
+      Alert.alert('Select a day', 'Choose at least one day for the alarm.');
       return;
     }
 
@@ -362,7 +374,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
       if (alarmId) {
         await update({
           id: alarmId,
-          label: label.trim() || 'Alarma',
+          label: label.trim() || 'Alarm',
           days: [...days] as Weekday[],
           hour,
           minute,
@@ -370,7 +382,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
         });
       } else {
         await create({
-          label: label.trim() || 'Alarma',
+          label: label.trim() || 'Alarm',
           days: [...days] as Weekday[],
           hour,
           minute,
@@ -386,61 +398,79 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-24">
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+    >
       {/* Label */}
-      <Text className="mb-1 text-sm font-semibold text-foreground">Nombre</Text>
-      <TextInput
-        value={label}
-        onChangeText={setLabel}
-        placeholder="Alarma"
-        placeholderTextColor="#94a3b8"
-        className="mb-6 rounded-lg border border-border bg-background px-4 py-3 text-base text-foreground"
-      />
+      <View className="mb-6">
+        <SectionLabel>Alarm name</SectionLabel>
+        <TextInput
+          value={label}
+          onChangeText={setLabel}
+          placeholder="e.g. Morning"
+          placeholderTextColor="#94a3b8"
+          className="rounded-2xl border border-border bg-card px-4 py-4 text-base text-foreground"
+        />
+      </View>
 
       {/* Time */}
-      <Text className="mb-3 text-sm font-semibold text-foreground">Hora</Text>
-      <View className="mb-6 items-center">
-        <TimePicker
-          hour={hour}
-          minute={minute}
-          onHourChange={setHour}
-          onMinuteChange={setMinute}
-        />
+      <View className="mb-6">
+        <SectionLabel>Time</SectionLabel>
+        <View className="rounded-2xl border border-border bg-card py-4">
+          <TimePicker
+            hour={hour}
+            minute={minute}
+            onHourChange={setHour}
+            onMinuteChange={setMinute}
+          />
+        </View>
       </View>
 
       {/* Days */}
-      <Text className="mb-3 text-sm font-semibold text-foreground">Días</Text>
       <View className="mb-6">
-        <DayPicker selected={days} onChange={setDays} />
+        <SectionLabel>Repeat</SectionLabel>
+        <View className="rounded-2xl border border-border bg-card p-4">
+          <DayPicker selected={days} onChange={setDays} />
+        </View>
       </View>
 
-      {/* Actions */}
-      <View className="mb-3 flex-row items-center justify-between">
-        <Text className="text-sm font-semibold text-foreground">Retos ({actions.length})</Text>
-        <Pressable onPress={addAction} className="rounded-full bg-primary px-3 py-1">
-          <Text className="text-xs font-semibold text-primary-foreground">+ Añadir</Text>
-        </Pressable>
-      </View>
+      {/* Challenges */}
+      <View className="mb-6">
+        <View className="mb-3 flex-row items-center justify-between">
+          <SectionLabel>Challenges ({actions.length})</SectionLabel>
+          <Pressable
+            onPress={addAction}
+            className="flex-row items-center gap-1 rounded-xl bg-primary px-3 py-1.5 active:opacity-80"
+          >
+            <Text className="text-xs font-bold text-primary-foreground">+ Add</Text>
+          </Pressable>
+        </View>
 
-      {actions.map((action, i) => (
-        <ActionRow
-          key={i}
-          action={action}
-          index={i}
-          total={actions.length}
-          onMoveUp={() => moveAction(i, i - 1)}
-          onMoveDown={() => moveAction(i, i + 1)}
-          onDelete={() => deleteAction(i)}
-          onChange={(a) => updateAction(i, a)}
-        />
-      ))}
+        {actions.map((action, i) => (
+          <ActionRow
+            key={i}
+            action={action}
+            index={i}
+            total={actions.length}
+            onMoveUp={() => moveAction(i, i - 1)}
+            onMoveDown={() => moveAction(i, i + 1)}
+            onDelete={() => deleteAction(i)}
+            onChange={(a) => updateAction(i, a)}
+          />
+        ))}
+      </View>
 
       {/* Save */}
-      <View className="mt-4">
-        <Button disabled={saving} onPress={handleSave}>
-          <Text>{saving ? 'Guardando…' : alarmId ? 'Guardar cambios' : 'Crear alarma'}</Text>
-        </Button>
-      </View>
+      <Pressable
+        disabled={saving}
+        onPress={handleSave}
+        className={`items-center rounded-2xl py-4 ${saving ? 'bg-primary/50' : 'bg-primary active:opacity-80'}`}
+      >
+        <Text className="text-base font-bold text-primary-foreground">
+          {saving ? 'Saving…' : alarmId ? 'Save changes' : 'Create alarm'}
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
