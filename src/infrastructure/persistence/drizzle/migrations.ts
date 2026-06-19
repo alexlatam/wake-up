@@ -38,4 +38,21 @@ export async function initDatabase(): Promise<void> {
   `).catch(() => {
     // Column already exists — ignore "duplicate column" error
   });
+
+  // v3: recreate alarm_sessions with ON DELETE CASCADE so deleting an alarm cascades to its sessions
+  await expo.execAsync(`
+    CREATE TABLE IF NOT EXISTS alarm_sessions_v3 (
+      id TEXT PRIMARY KEY,
+      alarm_id TEXT NOT NULL REFERENCES alarms(id) ON DELETE CASCADE,
+      fired_at INTEGER NOT NULL,
+      current_index INTEGER NOT NULL DEFAULT 0,
+      total_actions INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'RINGING'
+    );
+    INSERT OR IGNORE INTO alarm_sessions_v3 SELECT * FROM alarm_sessions;
+    DROP TABLE alarm_sessions;
+    ALTER TABLE alarm_sessions_v3 RENAME TO alarm_sessions;
+  `).catch(() => {
+    // Migration already applied (alarm_sessions already has CASCADE) — ignore
+  });
 }

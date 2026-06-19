@@ -32,7 +32,7 @@ export const alarmSessions = sqliteTable('alarm_sessions', {
   id: text('id').primaryKey(),
   alarmId: text('alarm_id')
     .notNull()
-    .references(() => alarms.id),
+    .references(() => alarms.id, { onDelete: 'cascade' }),
   firedAt: integer('fired_at', { mode: 'timestamp_ms' }).notNull(),
   currentIndex: integer('current_index').notNull().default(0),
   totalActions: integer('total_actions').notNull(),
