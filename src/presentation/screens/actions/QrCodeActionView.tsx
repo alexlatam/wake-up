@@ -6,9 +6,11 @@ import { Text } from '~/components/ui/text';
 export function QrCodeActionView({
   qrCodeValue,
   onComplete,
+  enableTorch = false,
 }: {
   qrCodeValue: string;
   onComplete: () => void;
+  enableTorch?: boolean;
 }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [wrongScan, setWrongScan] = useState(false);
@@ -66,6 +68,7 @@ export function QrCodeActionView({
         className="flex-1"
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={handleBarcodeScan}
+        enableTorch={enableTorch}
       />
       <View className="absolute bottom-0 left-0 right-0 items-center pb-8 pt-4">
         <View className="rounded-2xl bg-black/60 px-6 py-3">
