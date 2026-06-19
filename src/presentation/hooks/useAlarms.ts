@@ -57,7 +57,7 @@ export function useAlarms() {
 
   const toggle = useCallback(
     async (id: string) => {
-      setAlarms(prev => prev.map(a => a.id === id ? { ...a, enabled: !a.enabled } : a));
+      setAlarms(prev => prev.map(a => a.id === id ? a.withEnabled(!a.enabled) : a));
       const { alarmRepository } = getContainer();
       await new ToggleAlarm(alarmRepository).execute(id);
       await sync();
