@@ -1,32 +1,58 @@
-import { useEffect } from 'react';
-import { BackHandler, Platform, Pressable, StatusBar, Vibration, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { BackHandler, Pressable, StatusBar, Vibration, View } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { VolumeManager } from 'react-native-volume-manager';
+import { getContainer } from '@/infrastructure/di/container';
+import { useSessionStore } from '@/presentation/stores/sessionStore';
 import { useAlarmSession } from '@/presentation/hooks/useAlarmSession';
 import { ButtonActionView } from './actions/ButtonActionView';
 import { MathActionView } from './actions/MathActionView';
 import { PuzzleActionView } from './actions/PuzzleActionView';
 import { Text } from '~/components/ui/text';
 
-const DEFAULT_ALARM_SOURCE =
-  Platform.OS === 'android'
-    ? { uri: 'content://settings/system/alarm_alert' }
-    : { uri: '' };
+const DEFAULT_ALARM_SOURCE = require('@/../assets/sounds/wake-up.mp3');
 
 export function RingingScreen({ alarmId }: { alarmId: string }) {
   const router = useRouter();
   const player = useAudioPlayer(null);
+  const savedVolume = useRef<number>(1);
   const { session, alarm, loading, error, currentAction, completeAction, dismissAlarm } =
     useAlarmSession(alarmId);
 
   // Keep the screen on while solving challenges.
   useKeepAwake();
 
+  // Signal globally that an alarm is actively ringing so _layout skips duplicate navigation.
+  useEffect(() => {
+    useSessionStore.getState().setRinging(true);
+    return () => useSessionStore.getState().setRinging(false);
+  }, []);
+
   // Block hardware back button.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => sub.remove();
+  }, []);
+
+  // Lock volume at maximum — user cannot lower it while alarm rings.
+  useEffect(() => {
+    VolumeManager.getVolume().then(({ volume }) => {
+      savedVolume.current = volume;
+    });
+    VolumeManager.showNativeVolumeUI({ enabled: false });
+    VolumeManager.setVolume(1.0);
+
+    const sub = VolumeManager.addVolumeListener(() => {
+      VolumeManager.setVolume(1.0);
+    });
+
+    return () => {
+      sub.remove();
+      VolumeManager.showNativeVolumeUI({ enabled: true });
+      VolumeManager.setVolume(savedVolume.current);
+    };
   }, []);
 
   // Start audio + vibration loop once alarm data is available.
@@ -40,7 +66,7 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
     // 0ms initial delay, 800ms on, 600ms off — loops until Vibration.cancel().
     Vibration.vibrate([0, 800, 600], true);
     return () => {
-      player.pause();
+      try { player.pause(); } catch (_) {}
       Vibration.cancel();
     };
   // run once alarm data resolves
@@ -53,7 +79,15 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
       player.pause();
       Vibration.cancel();
       await dismissAlarm();
-      router.replace('/');
+      // Release ringing flag before checking queue so _layout doesn't race.
+      useSessionStore.getState().setRinging(false);
+      const { alarmSessionRepository } = getContainer();
+      const next = await alarmSessionRepository.findActive();
+      if (next) {
+        router.replace(`/ringing?alarmId=${next.alarmId}`);
+      } else {
+        router.replace('/');
+      }
     }
   }
 

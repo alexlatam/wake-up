@@ -20,11 +20,15 @@ export class SqliteAlarmSessionRepository implements AlarmSessionRepository {
   }
 
   async findActive(): Promise<AlarmSession | null> {
+    const cutoff = new Date(Date.now() - 8 * 60 * 60 * 1000);
     const rows = await this.db
       .select()
       .from(alarmSessions)
       .where(ne(alarmSessions.status, 'DISMISSED'));
-    const sorted = rows.sort((a, b) => b.firedAt.getTime() - a.firedAt.getTime());
+    // FIFO: oldest first; ignore sessions older than 8 h (stale ghost sessions from crashes)
+    const sorted = rows
+      .filter((r) => r.firedAt >= cutoff)
+      .sort((a, b) => a.firedAt.getTime() - b.firedAt.getTime());
     return sorted.length > 0 ? this.toSession(sorted[0]) : null;
   }
 

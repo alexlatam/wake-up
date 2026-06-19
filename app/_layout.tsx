@@ -5,6 +5,7 @@ import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import notifee, { EventType } from '@notifee/react-native';
 import { initContainer, getContainer } from '@/infrastructure/di/container';
+import { useSessionStore } from '@/presentation/stores/sessionStore';
 import { db } from '@/infrastructure/persistence/drizzle/client';
 import { initDatabase } from '@/infrastructure/persistence/drizzle/migrations';
 import { SqliteAlarmRepository } from '@/infrastructure/persistence/SqliteAlarmRepository';
@@ -70,10 +71,11 @@ export default function RootLayout() {
     });
 
     // Navigate to ringing screen when alarm fires with app in foreground.
+    // Skip if already ringing — the new session is queued in DB and will be picked up after dismiss.
     const unsub = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.DELIVERED) {
         const alarmId = detail.notification?.data?.alarmId;
-        if (typeof alarmId === 'string') {
+        if (typeof alarmId === 'string' && !useSessionStore.getState().isRinging) {
           router.push(`/ringing?alarmId=${alarmId}`);
         }
       }
@@ -81,12 +83,15 @@ export default function RootLayout() {
 
     // When app returns to foreground from background (e.g. via full-screen intent),
     // check for an active session that the background handler may have started.
+    // Skip if already ringing — RingingScreen owns its own lifecycle.
     const appStateSub = AppState.addEventListener('change', async (nextState) => {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        const { alarmSessionRepository } = getContainer();
-        const active = await alarmSessionRepository.findActive();
-        if (active) {
-          router.replace(`/ringing?alarmId=${active.alarmId}`);
+        if (!useSessionStore.getState().isRinging) {
+          const { alarmSessionRepository } = getContainer();
+          const active = await alarmSessionRepository.findActive();
+          if (active) {
+            router.replace(`/ringing?alarmId=${active.alarmId}`);
+          }
         }
       }
       appState.current = nextState;
