@@ -6,10 +6,12 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Switch,
   TextInput,
   View,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import NfcManager, { NfcTech } from 'react-native-nfc-manager';
 import { useRouter } from 'expo-router';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,7 +30,9 @@ type DraftAction =
   | { type: 'TYPE_TEXT'; level: TypeTextLevel }
   | { type: 'SHAKE'; level: ShakeLevel }
   | { type: 'WALK'; level: WalkLevel }
-  | { type: 'QR_CODE'; qrCodeValue: string | null };
+  | { type: 'QR_CODE'; qrCodeValue: string | null }
+  | { type: 'NFC'; nfcTagId: string | null }
+  | { type: 'PHOTO_MATCH'; photoUri: string | null };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -307,6 +311,11 @@ function ActionRow({
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [showQrScanner, setShowQrScanner] = useState(false);
   const qrScannedRef = useRef(false);
+  const [nfcScanning, setNfcScanning] = useState(false);
+  const [showPhotoCamera, setShowPhotoCamera] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const photoCameraRef = useRef<CameraView>(null);
+  const photoCapRef = useRef(false);
 
   async function openQrScanner() {
     if (!cameraPermission?.granted) {
@@ -318,6 +327,64 @@ function ActionRow({
     }
     qrScannedRef.current = false;
     setShowQrScanner(true);
+  }
+
+  async function capturePhoto() {
+    if (photoCapRef.current || !photoCameraRef.current) return;
+    photoCapRef.current = true;
+    try {
+      const photo = await photoCameraRef.current.takePictureAsync({ quality: 0.7 });
+      setPreviewUri(photo.uri);
+    } catch {
+      // ignore
+    } finally {
+      photoCapRef.current = false;
+    }
+  }
+
+  function confirmPhoto() {
+    if (!previewUri) return;
+    onChange({ type: 'PHOTO_MATCH', photoUri: previewUri });
+    setPreviewUri(null);
+    setShowPhotoCamera(false);
+  }
+
+  async function openPhotoCamera() {
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        Alert.alert('Permission required', 'Camera access is needed to take a photo.');
+        return;
+      }
+    }
+    setPreviewUri(null);
+    setShowPhotoCamera(true);
+  }
+
+  async function scanNfcTag() {
+    const supported = await NfcManager.isSupported();
+    if (!supported) {
+      Alert.alert('Not supported', 'NFC is not available on this device.');
+      return;
+    }
+    setNfcScanning(true);
+    try {
+      await NfcManager.start();
+      await NfcManager.requestTechnology(NfcTech.Ndef);
+      const tag = await NfcManager.getTag();
+      const tagId = (tag?.id ?? '').toLowerCase();
+      await NfcManager.cancelTechnologyRequest().catch(() => {});
+      if (tagId) {
+        onChange({ type: 'NFC', nfcTagId: tagId });
+      } else {
+        Alert.alert('Error', 'Could not read tag ID. Try a different NFC tag.');
+      }
+    } catch (_) {
+      Alert.alert('Error', 'Failed to scan NFC tag. Make sure NFC is enabled and try again.');
+      NfcManager.cancelTechnologyRequest().catch(() => {});
+    } finally {
+      setNfcScanning(false);
+    }
   }
 
   async function pickImage() {
@@ -363,10 +430,10 @@ function ActionRow({
       <View className="p-4">
         {/* Type selector */}
         <View className="flex-row flex-wrap gap-2">
-          {(['BUTTON', 'MATH', 'PUZZLE', 'TYPE_TEXT', 'SHAKE', 'WALK', 'QR_CODE'] as const).map((t) => (
+          {(['BUTTON', 'MATH', 'PUZZLE', 'TYPE_TEXT', 'SHAKE', 'WALK', 'QR_CODE', 'NFC', 'PHOTO_MATCH'] as const).map((t) => (
             <ChipButton
               key={t}
-              label={t === 'TYPE_TEXT' ? 'TEXT' : t === 'QR_CODE' ? 'QR' : t}
+              label={t === 'TYPE_TEXT' ? 'TEXT' : t === 'QR_CODE' ? 'QR' : t === 'PHOTO_MATCH' ? 'PHOTO' : t}
               active={action.type === t}
               variant="type"
               onPress={() => {
@@ -377,6 +444,8 @@ function ActionRow({
                 if (t === 'SHAKE') onChange({ type: 'SHAKE', level: 'EASY' });
                 if (t === 'WALK') onChange({ type: 'WALK', level: 'EASY' });
                 if (t === 'QR_CODE') onChange({ type: 'QR_CODE', qrCodeValue: null });
+                if (t === 'NFC') onChange({ type: 'NFC', nfcTagId: null });
+                if (t === 'PHOTO_MATCH') onChange({ type: 'PHOTO_MATCH', photoUri: null });
               }}
             />
           ))}
@@ -479,6 +548,30 @@ function ActionRow({
           </Text>
         )}
 
+        {/* NFC tag setup */}
+        {action.type === 'NFC' && (
+          <>
+            {action.nfcTagId ? (
+              <Text className="mb-3 text-sm text-green-500">
+                NFC tag saved. You can scan a different one below.
+              </Text>
+            ) : (
+              <Text className="mb-3 text-sm text-muted-foreground">
+                Scan an NFC tag now. When the alarm rings, you must tap this same tag to dismiss it.
+              </Text>
+            )}
+            <Pressable
+              onPress={scanNfcTag}
+              disabled={nfcScanning}
+              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+            >
+              <Text className="text-center text-sm text-muted-foreground">
+                {nfcScanning ? 'Scanning…' : action.nfcTagId ? 'Scan a different NFC tag' : 'Scan NFC tag'}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
         {/* QR_CODE scan setup */}
         {action.type === 'QR_CODE' && (
           <>
@@ -501,7 +594,98 @@ function ActionRow({
             </Pressable>
           </>
         )}
+        {/* PHOTO_MATCH setup */}
+        {action.type === 'PHOTO_MATCH' && (
+          <>
+            {action.photoUri ? (
+              <View className="mb-2">
+                <Image
+                  source={{ uri: action.photoUri }}
+                  style={{ width: '100%', height: 128, borderRadius: 12 }}
+                  resizeMode="cover"
+                />
+                <Text className="mt-2 text-sm text-green-500">
+                  Photo saved. You can retake it below.
+                </Text>
+              </View>
+            ) : (
+              <Text className="mb-3 text-sm text-muted-foreground">
+                Take a photo of a place or object. When the alarm rings, you must take the same photo to dismiss it.
+              </Text>
+            )}
+            <Pressable
+              onPress={openPhotoCamera}
+              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+            >
+              <Text className="text-center text-sm text-muted-foreground">
+                {action.photoUri ? '📸  Retake photo' : '📸  Take photo'}
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
+
+      {/* Photo camera modal */}
+      {action.type === 'PHOTO_MATCH' && (
+        <Modal
+          visible={showPhotoCamera}
+          animationType="slide"
+          onRequestClose={() => { setShowPhotoCamera(false); setPreviewUri(null); }}
+        >
+          <View className="flex-1 bg-black">
+            {!previewUri ? (
+              <>
+                <CameraView ref={photoCameraRef} className="flex-1" facing="back" />
+                <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
+                  <Text className="mb-5 text-base text-white/70">
+                    Point at the place or object
+                  </Text>
+                  <View className="flex-row items-center gap-8">
+                    <Pressable
+                      onPress={() => setShowPhotoCamera(false)}
+                      className="rounded-full bg-white/20 px-6 py-3"
+                    >
+                      <Text className="font-semibold text-white">Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={capturePhoto}
+                      style={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: 36,
+                        borderWidth: 4,
+                        borderColor: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <Image source={{ uri: previewUri }} style={{ flex: 1 }} resizeMode="cover" />
+                <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
+                  <Text className="mb-5 text-base text-white/70">Use this photo?</Text>
+                  <View className="flex-row gap-4">
+                    <Pressable
+                      onPress={() => setPreviewUri(null)}
+                      className="rounded-full bg-white/20 px-8 py-4"
+                    >
+                      <Text className="font-semibold text-white">Retake</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={confirmPhoto}
+                      className="rounded-full bg-primary px-8 py-4"
+                    >
+                      <Text className="font-semibold text-primary-foreground">Confirm</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </Modal>
+      )}
 
       {/* QR scanner modal */}
       {action.type === 'QR_CODE' && (
@@ -550,9 +734,12 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
   const [minute, setMinute] = useState(0);
   const [actions, setActions] = useState<DraftAction[]>([{ type: 'BUTTON' }]);
   const [ringtoneUri, setRingtoneUri] = useState<string | null>(null);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [flashlightEnabled, setFlashlightEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const player = useAudioPlayer(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   useEffect(() => {
     return () => { try { player.pause(); } catch (_) {} };
@@ -586,6 +773,8 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
       setAmpm(h < 12 ? 'AM' : 'PM');
       setMinute(a.schedule.minute);
       setRingtoneUri(a.ringtoneUri);
+      setVibrationEnabled(a.vibrationEnabled);
+      setFlashlightEnabled(a.flashlightEnabled);
       setActions(
         a.actions.map((ac): DraftAction => {
           if (ac.type === 'BUTTON') return { type: 'BUTTON' };
@@ -594,6 +783,8 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
           if (ac.type === 'SHAKE') return { type: 'SHAKE', level: ac.level };
           if (ac.type === 'WALK') return { type: 'WALK', level: ac.level };
           if (ac.type === 'QR_CODE') return { type: 'QR_CODE', qrCodeValue: ac.qrCodeValue };
+          if (ac.type === 'NFC') return { type: 'NFC', nfcTagId: ac.nfcTagId };
+          if (ac.type === 'PHOTO_MATCH') return { type: 'PHOTO_MATCH', photoUri: ac.photoUri };
           return { type: 'PUZZLE', level: ac.level, imageUri: ac.imageUri };
         }),
       );
@@ -605,6 +796,13 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarmId]);
+
+  async function handleFlashlightToggle(value: boolean) {
+    setFlashlightEnabled(value);
+    if (value && !cameraPermission?.granted) {
+      await requestCameraPermission();
+    }
+  }
 
   async function pickRingtone() {
     const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
@@ -651,6 +849,8 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
       if (a.type === 'SHAKE') return { type: 'SHAKE', position: i, level: a.level };
       if (a.type === 'WALK') return { type: 'WALK', position: i, level: a.level };
       if (a.type === 'QR_CODE') return { type: 'QR_CODE', position: i, qrCodeValue: a.qrCodeValue ?? '' };
+      if (a.type === 'NFC') return { type: 'NFC', position: i, nfcTagId: a.nfcTagId ?? '' };
+      if (a.type === 'PHOTO_MATCH') return { type: 'PHOTO_MATCH', position: i, photoUri: a.photoUri ?? '' };
       return { type: 'PUZZLE', position: i, level: a.level, imageUri: a.imageUri };
     });
 
@@ -669,6 +869,8 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
           minute,
           actions: actionConfigs,
           ringtoneUri,
+          vibrationEnabled,
+          flashlightEnabled,
         });
       } else {
         await create({
@@ -678,6 +880,8 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
           minute,
           actions: actionConfigs,
           ringtoneUri,
+          vibrationEnabled,
+          flashlightEnabled,
         });
       }
       router.back();
@@ -770,6 +974,28 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
                 </Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Alerts */}
+      <View className="mb-6">
+        <SectionLabel>Alerts</SectionLabel>
+        <View className="overflow-hidden rounded-2xl border border-border bg-card">
+          <View className="flex-row items-center justify-between px-4 py-3.5">
+            <View className="flex-1 mr-3">
+              <Text className="text-sm font-medium text-foreground">Vibration</Text>
+              <Text className="mt-0.5 text-xs text-muted-foreground">Vibrate when alarm rings</Text>
+            </View>
+            <Switch value={vibrationEnabled} onValueChange={setVibrationEnabled} />
+          </View>
+          <View className="h-px bg-border mx-4" />
+          <View className="flex-row items-center justify-between px-4 py-3.5">
+            <View className="flex-1 mr-3">
+              <Text className="text-sm font-medium text-foreground">Flashlight</Text>
+              <Text className="mt-0.5 text-xs text-muted-foreground">Turn on flashlight when alarm rings</Text>
+            </View>
+            <Switch value={flashlightEnabled} onValueChange={handleFlashlightToggle} />
           </View>
         </View>
       </View>
