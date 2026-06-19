@@ -9,7 +9,7 @@ export function ButtonActionView({ onComplete }: { onComplete: () => void }) {
         className="h-52 w-52 items-center justify-center rounded-full bg-white shadow-2xl active:opacity-80"
       >
         <Text className="text-center text-xl font-bold text-black leading-tight">
-          {'Estoy\ndespierto'}
+          {'Turn off'}
         </Text>
       </Pressable>
     </View>

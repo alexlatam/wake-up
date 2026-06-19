@@ -1,15 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { BackHandler, Pressable, StatusBar, Vibration, View } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import { VolumeManager } from 'react-native-volume-manager';
 import { getContainer } from '@/infrastructure/di/container';
 import { useSessionStore } from '@/presentation/stores/sessionStore';
 import { useAlarmSession } from '@/presentation/hooks/useAlarmSession';
 import { ButtonActionView } from './actions/ButtonActionView';
 import { MathActionView } from './actions/MathActionView';
 import { PuzzleActionView } from './actions/PuzzleActionView';
+import { TypeTextActionView } from './actions/TypeTextActionView';
+import { ShakeActionView } from './actions/ShakeActionView';
+import { WalkActionView } from './actions/WalkActionView';
+import { QrCodeActionView } from './actions/QrCodeActionView';
 import { Text } from '~/components/ui/text';
 
 const DEFAULT_ALARM_SOURCE = require('@/../assets/sounds/wake-up.mp3');
@@ -17,7 +20,6 @@ const DEFAULT_ALARM_SOURCE = require('@/../assets/sounds/wake-up.mp3');
 export function RingingScreen({ alarmId }: { alarmId: string }) {
   const router = useRouter();
   const player = useAudioPlayer(null);
-  const savedVolume = useRef<number>(1);
   const { session, alarm, loading, error, currentAction, completeAction, dismissAlarm } =
     useAlarmSession(alarmId);
 
@@ -34,25 +36,6 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => sub.remove();
-  }, []);
-
-  // Lock volume at maximum — user cannot lower it while alarm rings.
-  useEffect(() => {
-    VolumeManager.getVolume().then(({ volume }) => {
-      savedVolume.current = volume;
-    });
-    VolumeManager.showNativeVolumeUI({ enabled: false });
-    VolumeManager.setVolume(1.0);
-
-    const sub = VolumeManager.addVolumeListener(() => {
-      VolumeManager.setVolume(1.0);
-    });
-
-    return () => {
-      sub.remove();
-      VolumeManager.showNativeVolumeUI({ enabled: true });
-      VolumeManager.setVolume(savedVolume.current);
-    };
   }, []);
 
   // Start audio + vibration loop once alarm data is available.
@@ -138,17 +121,50 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
         )}
 
         {!loading && currentAction?.type === 'BUTTON' && (
-          <ButtonActionView onComplete={handleActionComplete} />
+          <ButtonActionView key={session?.currentIndex} onComplete={handleActionComplete} />
         )}
 
         {!loading && currentAction?.type === 'MATH' && (
-          <MathActionView level={currentAction.level} onComplete={handleActionComplete} />
+          <MathActionView key={session?.currentIndex} level={currentAction.level} onComplete={handleActionComplete} />
         )}
 
         {!loading && currentAction?.type === 'PUZZLE' && (
           <PuzzleActionView
+            key={session?.currentIndex}
             level={currentAction.level}
             imageUri={currentAction.imageUri}
+            onComplete={handleActionComplete}
+          />
+        )}
+
+        {!loading && currentAction?.type === 'TYPE_TEXT' && (
+          <TypeTextActionView
+            key={session?.currentIndex}
+            level={currentAction.level}
+            onComplete={handleActionComplete}
+          />
+        )}
+
+        {!loading && currentAction?.type === 'SHAKE' && (
+          <ShakeActionView
+            key={session?.currentIndex}
+            level={currentAction.level}
+            onComplete={handleActionComplete}
+          />
+        )}
+
+        {!loading && currentAction?.type === 'WALK' && (
+          <WalkActionView
+            key={session?.currentIndex}
+            level={currentAction.level}
+            onComplete={handleActionComplete}
+          />
+        )}
+
+        {!loading && currentAction?.type === 'QR_CODE' && (
+          <QrCodeActionView
+            key={session?.currentIndex}
+            qrCodeValue={currentAction.qrCodeValue}
             onComplete={handleActionComplete}
           />
         )}

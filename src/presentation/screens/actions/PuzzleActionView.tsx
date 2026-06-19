@@ -7,9 +7,9 @@ import { Text } from '~/components/ui/text';
 const DEFAULT_IMAGE = require('~/assets/icon.png');
 
 const GRID: Record<PuzzleLevel, { cols: number; rows: number }> = {
-  MINIMO: { cols: 2, rows: 3 },
-  MEDIO:  { cols: 3, rows: 4 },
-  MAXIMO: { cols: 6, rows: 6 },
+  EASY: { cols: 2, rows: 3 },
+  MEDIUM:  { cols: 3, rows: 4 },
+  MAXIMUM: { cols: 6, rows: 6 },
 };
 
 function shuffled(n: number): number[] {
@@ -82,7 +82,7 @@ export function PuzzleActionView({
       }}
     >
       <Text className="mb-3 text-center text-sm text-white/60">
-        Toca dos piezas para intercambiarlas
+        Tap two pieces to swap them
       </Text>
 
       <View style={{ width: containerWidth, height: puzzleH, flexDirection: 'row', flexWrap: 'wrap' }}>
