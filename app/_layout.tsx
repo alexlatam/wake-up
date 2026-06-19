@@ -123,6 +123,8 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: 'WakeUp' }} />
         <Stack.Screen name="alarm/[id]" options={{ title: 'Alarm' }} />
+        <Stack.Screen name="challenges/index" options={{ title: 'Challenges' }} />
+        <Stack.Screen name="challenges/[type]" options={{ title: 'Challenge' }} />
         <Stack.Screen
           name="ringing"
           options={{
