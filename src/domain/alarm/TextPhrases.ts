@@ -38,6 +38,6 @@ const PHRASES: Record<TypeTextLevel, string[]> = {
 };
 
 export function getRandomPhrase(level: TypeTextLevel): string {
-  const list = PHRASES[level];
+  const list = PHRASES[level] ?? PHRASES['EASY'];
   return list[Math.floor(Math.random() * list.length)];
 }

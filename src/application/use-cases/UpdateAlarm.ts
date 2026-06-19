@@ -13,6 +13,8 @@ export interface UpdateAlarmInput {
   minute: number;
   actions: ActionConfig[];
   ringtoneUri?: string | null;
+  vibrationEnabled?: boolean;
+  flashlightEnabled?: boolean;
 }
 
 export class UpdateAlarm {
@@ -34,6 +36,8 @@ export class UpdateAlarm {
       createdAt: existing.createdAt,
       updatedAt: this.clock.now(),
       ringtoneUri: input.ringtoneUri !== undefined ? input.ringtoneUri : existing.ringtoneUri,
+      vibrationEnabled: input.vibrationEnabled !== undefined ? input.vibrationEnabled : existing.vibrationEnabled,
+      flashlightEnabled: input.flashlightEnabled !== undefined ? input.flashlightEnabled : existing.flashlightEnabled,
     });
     await this.alarmRepository.save(updated);
     return updated;

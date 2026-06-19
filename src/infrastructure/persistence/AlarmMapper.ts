@@ -12,11 +12,13 @@ export const AlarmMapper = {
     const days: Weekday[] = JSON.parse(row.days);
     const actions: ActionConfig[] = actionRows.map((a) => {
       if (a.type === 'BUTTON') return { type: 'BUTTON', position: a.position };
-      if (a.type === 'MATH') return { type: 'MATH', position: a.position, level: a.level as MathLevel };
-      if (a.type === 'TYPE_TEXT') return { type: 'TYPE_TEXT', position: a.position, level: a.level as TypeTextLevel };
-      if (a.type === 'SHAKE') return { type: 'SHAKE', position: a.position, level: a.level as ShakeLevel };
-      if (a.type === 'WALK') return { type: 'WALK', position: a.position, level: a.level as WalkLevel };
+      if (a.type === 'MATH') return { type: 'MATH', position: a.position, level: (a.level as MathLevel) ?? 'EASY' };
+      if (a.type === 'TYPE_TEXT') return { type: 'TYPE_TEXT', position: a.position, level: (a.level as TypeTextLevel) ?? 'EASY' };
+      if (a.type === 'SHAKE') return { type: 'SHAKE', position: a.position, level: (a.level as ShakeLevel) ?? 'EASY' };
+      if (a.type === 'WALK') return { type: 'WALK', position: a.position, level: (a.level as WalkLevel) ?? 'EASY' };
       if (a.type === 'QR_CODE') return { type: 'QR_CODE', position: a.position, qrCodeValue: a.imageUri ?? '' };
+      if (a.type === 'NFC') return { type: 'NFC', position: a.position, nfcTagId: a.imageUri ?? '' };
+      if (a.type === 'PHOTO_MATCH') return { type: 'PHOTO_MATCH', position: a.position, photoUri: a.imageUri ?? '' };
       return { type: 'PUZZLE', position: a.position, level: a.level as PuzzleLevel, imageUri: a.imageUri ?? null };
     });
     return new Alarm({
@@ -28,6 +30,8 @@ export const AlarmMapper = {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       ringtoneUri: row.ringtoneUri ?? null,
+      vibrationEnabled: row.vibrationEnabled ?? true,
+      flashlightEnabled: row.flashlightEnabled ?? false,
     });
   },
 
@@ -42,6 +46,8 @@ export const AlarmMapper = {
       createdAt: alarm.createdAt,
       updatedAt: alarm.updatedAt,
       ringtoneUri: alarm.ringtoneUri,
+      vibrationEnabled: alarm.vibrationEnabled,
+      flashlightEnabled: alarm.flashlightEnabled,
     };
   },
 
@@ -51,8 +57,8 @@ export const AlarmMapper = {
       alarmId: alarm.id,
       position: action.position,
       type: action.type,
-      level: (action.type !== 'BUTTON' && action.type !== 'QR_CODE') ? action.level : null,
-      imageUri: action.type === 'PUZZLE' ? (action.imageUri ?? null) : action.type === 'QR_CODE' ? action.qrCodeValue : null,
+      level: (action.type !== 'BUTTON' && action.type !== 'QR_CODE' && action.type !== 'NFC' && action.type !== 'PHOTO_MATCH') ? action.level : null,
+      imageUri: action.type === 'PUZZLE' ? (action.imageUri ?? null) : action.type === 'QR_CODE' ? action.qrCodeValue : action.type === 'NFC' ? action.nfcTagId : action.type === 'PHOTO_MATCH' ? action.photoUri : null,
     }));
   },
 };

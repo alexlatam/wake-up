@@ -12,6 +12,8 @@ export interface CreateAlarmInput {
   minute: number;
   actions: ActionConfig[];
   ringtoneUri?: string | null;
+  vibrationEnabled?: boolean;
+  flashlightEnabled?: boolean;
 }
 
 export class CreateAlarm {
@@ -32,6 +34,8 @@ export class CreateAlarm {
       createdAt: now,
       updatedAt: now,
       ringtoneUri: input.ringtoneUri ?? null,
+      vibrationEnabled: input.vibrationEnabled ?? true,
+      flashlightEnabled: input.flashlightEnabled ?? false,
     });
     await this.alarmRepository.save(alarm);
     return alarm;

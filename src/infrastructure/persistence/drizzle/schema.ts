@@ -11,6 +11,8 @@ export const alarms = sqliteTable('alarms', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
   ringtoneUri: text('ringtone_uri'), // null = use system default alarm ringtone
+  vibrationEnabled: integer('vibration_enabled', { mode: 'boolean' }).notNull().default(true),
+  flashlightEnabled: integer('flashlight_enabled', { mode: 'boolean' }).notNull().default(false),
 });
 
 export const alarmActions = sqliteTable(

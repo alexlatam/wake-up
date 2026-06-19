@@ -39,6 +39,14 @@ export async function initDatabase(): Promise<void> {
     // Column already exists — ignore "duplicate column" error
   });
 
+  // v4: add vibration_enabled and flashlight_enabled to alarms
+  await expo.execAsync(`
+    ALTER TABLE alarms ADD COLUMN vibration_enabled INTEGER NOT NULL DEFAULT 1;
+  `).catch(() => {});
+  await expo.execAsync(`
+    ALTER TABLE alarms ADD COLUMN flashlight_enabled INTEGER NOT NULL DEFAULT 0;
+  `).catch(() => {});
+
   // v3: recreate alarm_sessions with ON DELETE CASCADE so deleting an alarm cascades to its sessions
   await expo.execAsync(`
     CREATE TABLE IF NOT EXISTS alarm_sessions_v3 (
