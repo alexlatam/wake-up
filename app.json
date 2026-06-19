@@ -9,7 +9,13 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.alexisamm.wakeup"
+      "bundleIdentifier": "com.alexisamm.wakeup",
+      "entitlements": {
+        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"]
+      },
+      "infoPlist": {
+        "NFCReaderUsageDescription": "Used to scan NFC tags to dismiss alarm challenges."
+      }
     },
     "android": {
       "package": "com.alexisamm.wakeup",
@@ -32,7 +38,9 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WAKE_LOCK",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.NFC"
       ]
     },
     "web": {
@@ -43,7 +51,8 @@
       "expo-router",
       "expo-audio",
       "expo-camera",
-      "./notifee.plugin.js"
+      "./notifee.plugin.js",
+      "react-native-nfc-manager"
     ],
     "experiments": {
       "typedRoutes": true
