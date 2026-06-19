@@ -41,7 +41,7 @@ describe('Alarm', () => {
 
     it('accepts actions out of order — sorts them', () => {
       const actions: ActionConfig[] = [
-        { type: 'MATH', position: 1, level: 'MINIMO' },
+        { type: 'MATH', position: 1, level: 'EASY' },
         { type: 'BUTTON', position: 0 },
       ];
       const alarm = makeAlarm({ actions });
@@ -51,9 +51,9 @@ describe('Alarm', () => {
 
     it('allows repeated action types with consecutive positions', () => {
       const actions: ActionConfig[] = [
-        { type: 'MATH', position: 0, level: 'MINIMO' },
-        { type: 'MATH', position: 1, level: 'MAXIMO' },
-        { type: 'MATH', position: 2, level: 'EXTREMO' },
+        { type: 'MATH', position: 0, level: 'EASY' },
+        { type: 'MATH', position: 1, level: 'MAXIMUM' },
+        { type: 'MATH', position: 2, level: 'EXTREME' },
       ];
       expect(() => makeAlarm({ actions })).not.toThrow();
     });

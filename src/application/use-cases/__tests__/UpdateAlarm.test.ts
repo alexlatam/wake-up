@@ -45,7 +45,7 @@ describe('UpdateAlarm', () => {
         days: [5, 6],
         hour: 22,
         minute: 30,
-        actions: [{ type: 'MATH', position: 0, level: 'MAXIMO' }],
+        actions: [{ type: 'MATH', position: 0, level: 'MAXIMUM' }],
       });
       expect(result.label).toBe('Evening');
       expect(result.schedule.hour).toBe(22);

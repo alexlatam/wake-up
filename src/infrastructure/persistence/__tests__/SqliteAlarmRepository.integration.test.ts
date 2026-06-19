@@ -55,7 +55,7 @@ const makeAlarm = (id = 'alarm-1') =>
     enabled: true,
     actions: [
       { type: 'BUTTON', position: 0 },
-      { type: 'MATH', position: 1, level: 'MEDIO' },
+      { type: 'MATH', position: 1, level: 'MEDIUM' },
     ],
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
