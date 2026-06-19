@@ -150,6 +150,38 @@ const DETAILS: Record<ActionType, ChallengeDetail> = {
     ],
     tip: 'Best for: people who want to be forced out of bed to reach the QR code.',
   },
+  NFC: {
+    type: 'NFC',
+    icon: '📡',
+    name: 'NFC Tag',
+    tagline: 'Tap to silence.',
+    description:
+      'Tap a specific NFC sticker to dismiss the alarm. You register the tag when setting up the alarm — stick it in your bathroom, kitchen, or anywhere away from your bed. In the dark, a single tap is all it takes.',
+    howItWorks: [
+      'Stick a small NFC tag somewhere away from your bed.',
+      'When creating or editing the alarm, tap "Scan NFC tag" and touch the sticker with your phone.',
+      'That tag\'s unique ID is saved to the alarm.',
+      'When the alarm rings, the screen prompts you to tap your NFC tag.',
+      'Correct tag → alarm dismissed. Wrong tag → try again.',
+    ],
+    tip: 'Best for: people who want a frictionless but physical challenge — works in pitch darkness.',
+  },
+  PHOTO_MATCH: {
+    type: 'PHOTO_MATCH',
+    icon: '📸',
+    name: 'Photo Match',
+    tagline: 'Find it. Shoot it. Dismiss it.',
+    description:
+      'Take a photo of a specific place or object when setting up the alarm. When the alarm rings, you must take a new photo of that exact same location. The app compares both images — if they match, the alarm dismisses.',
+    howItWorks: [
+      'When creating or editing the alarm, tap "Take photo" and photograph a place or object.',
+      'That photo is saved as the reference for this challenge.',
+      'When the alarm rings, the camera opens with a thumbnail of the reference photo.',
+      'Point your camera at the same location and take a photo.',
+      'Match confirmed → alarm dismissed. No match → try again.',
+    ],
+    tip: 'Best for: forcing yourself to physically go to a specific place — your kitchen, bathroom, or front door.',
+  },
 };
 
 function HowItWorksStep({ index, text }: { index: number; text: string }) {

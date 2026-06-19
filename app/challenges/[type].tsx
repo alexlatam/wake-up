@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { ChallengeDetailScreen } from '@/presentation/screens/ChallengeDetailScreen';
 import type { ActionType } from '@/domain/alarm/Action';
 
-const VALID_TYPES: ActionType[] = ['BUTTON', 'MATH', 'PUZZLE', 'TYPE_TEXT', 'SHAKE', 'WALK', 'QR_CODE'];
+const VALID_TYPES: ActionType[] = ['BUTTON', 'MATH', 'PUZZLE', 'TYPE_TEXT', 'SHAKE', 'WALK', 'QR_CODE', 'NFC', 'PHOTO_MATCH'];
 
 const NAMES: Record<ActionType, string> = {
   BUTTON: 'Quick Dismiss',
@@ -12,6 +12,8 @@ const NAMES: Record<ActionType, string> = {
   SHAKE: 'Shake',
   WALK: 'Walk',
   QR_CODE: 'QR Code',
+  NFC: 'NFC Tag',
+  PHOTO_MATCH: 'Photo Match',
 };
 
 export default function ChallengeDetailRoute() {
