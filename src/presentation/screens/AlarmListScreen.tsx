@@ -116,11 +116,9 @@ export function AlarmListScreen() {
   const {
     notifications: hasNotifPermission,
     exactAlarm: hasExactAlarmPermission,
-    batteryOptimized,
     requestNotifications,
     openNotificationSettings,
     openExactAlarmSettings,
-    openBatterySettings,
     refresh: refreshPermissions,
   } = useAlarmPermissions();
 
@@ -178,13 +176,7 @@ export function AlarmListScreen() {
           onPress={openExactAlarmSettings}
         />
       )}
-      {batteryOptimized && (
-        <PermissionBanner
-          variant="orange"
-          message="Disable battery optimization to prevent missed alarms"
-          onPress={openBatterySettings}
-        />
-      )}
+
 
       <FlatList
         data={alarms}
