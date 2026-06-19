@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAlarms } from '@/presentation/hooks/useAlarms';
@@ -308,6 +309,28 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
   const [actions, setActions] = useState<DraftAction[]>([{ type: 'BUTTON' }]);
   const [ringtoneUri, setRingtoneUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const player = useAudioPlayer(null);
+
+  useEffect(() => {
+    return () => { try { player.pause(); } catch (_) {} };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function togglePreview() {
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+      return;
+    }
+    const source = ringtoneUri
+      ? { uri: ringtoneUri }
+      : require('@/../assets/sounds/wake-up.mp3');
+    await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+    player.replace(source);
+    player.play();
+    setIsPlaying(true);
+  }
 
   useEffect(() => {
     if (!alarmId) return;
@@ -466,9 +489,15 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
               )}
             </View>
             <View className="flex-row gap-2">
+              <Pressable
+                onPress={togglePreview}
+                className="h-8 w-8 items-center justify-center rounded-lg bg-muted"
+              >
+                <Text className="text-sm text-foreground">{isPlaying ? '⏹' : '▶'}</Text>
+              </Pressable>
               {ringtoneUri && (
                 <Pressable
-                  onPress={() => setRingtoneUri(null)}
+                  onPress={() => { player.pause(); setIsPlaying(false); setRingtoneUri(null); }}
                   className="rounded-lg bg-muted px-3 py-1.5"
                 >
                   <Text className="text-xs font-semibold text-muted-foreground">Reset</Text>
