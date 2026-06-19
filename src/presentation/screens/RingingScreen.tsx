@@ -3,6 +3,7 @@ import { BackHandler, Pressable, StatusBar, Vibration, View } from 'react-native
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { getContainer } from '@/infrastructure/di/container';
 import { useSessionStore } from '@/presentation/stores/sessionStore';
 import { useAlarmSession } from '@/presentation/hooks/useAlarmSession';
@@ -13,6 +14,8 @@ import { TypeTextActionView } from './actions/TypeTextActionView';
 import { ShakeActionView } from './actions/ShakeActionView';
 import { WalkActionView } from './actions/WalkActionView';
 import { QrCodeActionView } from './actions/QrCodeActionView';
+import { NfcActionView } from './actions/NfcActionView';
+import { PhotoMatchActionView } from './actions/PhotoMatchActionView';
 import { Text } from '~/components/ui/text';
 
 const DEFAULT_ALARM_SOURCE = require('@/../assets/sounds/wake-up.mp3');
@@ -22,6 +25,7 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
   const player = useAudioPlayer(null);
   const { session, alarm, loading, error, currentAction, completeAction, dismissAlarm } =
     useAlarmSession(alarmId);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   // Keep the screen on while solving challenges.
   useKeepAwake();
@@ -38,6 +42,14 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
     return () => sub.remove();
   }, []);
 
+  // Request camera permission when flashlight is enabled.
+  useEffect(() => {
+    if (!loading && alarm?.flashlightEnabled && !cameraPermission?.granted) {
+      requestCameraPermission();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   // Start audio + vibration loop once alarm data is available.
   useEffect(() => {
     if (loading) return;
@@ -46,8 +58,10 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
     player.replace(source);
     player.loop = true;
     player.play();
-    // 0ms initial delay, 800ms on, 600ms off — loops until Vibration.cancel().
-    Vibration.vibrate([0, 800, 600], true);
+    if (alarm?.vibrationEnabled !== false) {
+      // 0ms initial delay, 800ms on, 600ms off — loops until Vibration.cancel().
+      Vibration.vibrate([0, 800, 600], true);
+    }
     return () => {
       try { player.pause(); } catch (_) {}
       Vibration.cancel();
@@ -166,9 +180,34 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
             key={session?.currentIndex}
             qrCodeValue={currentAction.qrCodeValue}
             onComplete={handleActionComplete}
+            enableTorch={alarm?.flashlightEnabled}
+          />
+        )}
+
+        {!loading && currentAction?.type === 'NFC' && (
+          <NfcActionView
+            key={session?.currentIndex}
+            nfcTagId={currentAction.nfcTagId}
+            onComplete={handleActionComplete}
+          />
+        )}
+
+        {!loading && currentAction?.type === 'PHOTO_MATCH' && (
+          <PhotoMatchActionView
+            key={session?.currentIndex}
+            photoUri={currentAction.photoUri}
+            onComplete={handleActionComplete}
           />
         )}
       </View>
+
+      {/* Hidden torch — active for non-QR challenges when flashlight is enabled */}
+      {!loading && alarm?.flashlightEnabled && cameraPermission?.granted && currentAction?.type !== 'QR_CODE' && (
+        <CameraView
+          style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+          enableTorch={true}
+        />
+      )}
     </View>
   );
 }
