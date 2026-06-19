@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
+import { Pedometer } from 'expo-sensors';
 import type { WalkLevel } from '@/domain/alarm/Action';
 import { Text } from '~/components/ui/text';
 
@@ -23,23 +24,16 @@ export function WalkActionView({
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    type PedometerModule = {
-      isAvailableAsync: () => Promise<boolean>;
-      watchStepCount: (cb: (result: { steps: number }) => void) => { remove: () => void };
-    };
-
-    let Ped: PedometerModule | null = null;
-    try {
-      Ped = require('expo-sensors/build/Pedometer') as PedometerModule;
-    } catch {
-      return;
-    }
-
     let sub: { remove: () => void } | null = null;
 
-    Ped.isAvailableAsync().then((available) => {
-      if (!available || doneRef.current || !Ped) return;
-      sub = Ped.watchStepCount((result) => {
+    (async () => {
+      const { granted } = await Pedometer.requestPermissionsAsync();
+      if (!granted || doneRef.current) return;
+
+      const available = await Pedometer.isAvailableAsync();
+      if (!available || doneRef.current) return;
+
+      sub = Pedometer.watchStepCount((result) => {
         if (doneRef.current) return;
         setSteps(result.steps);
         if (result.steps >= target) {
@@ -47,7 +41,7 @@ export function WalkActionView({
           onCompleteRef.current();
         }
       });
-    });
+    })();
 
     return () => {
       sub?.remove();
