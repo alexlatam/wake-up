@@ -31,7 +31,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -41,6 +42,7 @@
     "plugins": [
       "expo-router",
       "expo-audio",
+      "expo-camera",
       "./notifee.plugin.js"
     ],
     "experiments": {
