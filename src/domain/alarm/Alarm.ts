@@ -11,6 +11,8 @@ export interface AlarmProps {
   createdAt: Date;
   updatedAt: Date;
   ringtoneUri: string | null;
+  vibrationEnabled?: boolean;
+  flashlightEnabled?: boolean;
 }
 
 export class Alarm {
@@ -22,6 +24,8 @@ export class Alarm {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly ringtoneUri: string | null;
+  readonly vibrationEnabled: boolean;
+  readonly flashlightEnabled: boolean;
 
   constructor(props: AlarmProps) {
     if (props.actions.length === 0) {
@@ -36,6 +40,8 @@ export class Alarm {
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
     this.ringtoneUri = props.ringtoneUri ?? null;
+    this.vibrationEnabled = props.vibrationEnabled ?? true;
+    this.flashlightEnabled = props.flashlightEnabled ?? false;
   }
 
   private validatePositions(actions: ActionConfig[]): void {
@@ -61,6 +67,8 @@ export class Alarm {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       ringtoneUri: this.ringtoneUri,
+      vibrationEnabled: this.vibrationEnabled,
+      flashlightEnabled: this.flashlightEnabled,
     };
   }
 }
