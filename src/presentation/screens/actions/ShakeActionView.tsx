@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import type { ShakeLevel } from '@/domain/alarm/Action';
 import { Text } from '~/components/ui/text';
 
-const DURATION_SECONDS: Record<ShakeLevel, number> = {
+const DURATION_SECONDS: Record<Exclude<ShakeLevel, 'CUSTOM'>, number> = {
   EASY: 3,
   MEDIUM: 10,
   MAXIMUM: 30,
@@ -15,12 +15,14 @@ const TICK_MS = 100;
 
 export function ShakeActionView({
   level,
+  customSeconds,
   onComplete,
 }: {
   level: ShakeLevel;
+  customSeconds?: number;
   onComplete: () => void;
 }) {
-  const required = DURATION_SECONDS[level];
+  const required = level === 'CUSTOM' ? (customSeconds ?? 30) : DURATION_SECONDS[level];
   const totalTenths = required * 10;
 
   const [elapsed, setElapsed] = useState(0);

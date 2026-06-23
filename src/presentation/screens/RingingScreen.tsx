@@ -147,6 +147,8 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
             key={session?.currentIndex}
             level={currentAction.level}
             imageUri={currentAction.imageUri}
+            customRows={currentAction.customRows}
+            customCols={currentAction.customCols}
             onComplete={handleActionComplete}
           />
         )}
@@ -155,6 +157,7 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
           <TypeTextActionView
             key={session?.currentIndex}
             level={currentAction.level}
+            customWordCount={currentAction.customWordCount}
             onComplete={handleActionComplete}
           />
         )}
@@ -163,6 +166,7 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
           <ShakeActionView
             key={session?.currentIndex}
             level={currentAction.level}
+            customSeconds={currentAction.customSeconds}
             onComplete={handleActionComplete}
           />
         )}
@@ -196,13 +200,14 @@ export function RingingScreen({ alarmId }: { alarmId: string }) {
           <PhotoMatchActionView
             key={session?.currentIndex}
             photoUri={currentAction.photoUri}
+            enableTorch={alarm?.flashlightEnabled}
             onComplete={handleActionComplete}
           />
         )}
       </View>
 
-      {/* Hidden torch — active for non-QR challenges when flashlight is enabled */}
-      {!loading && alarm?.flashlightEnabled && cameraPermission?.granted && currentAction?.type !== 'QR_CODE' && (
+      {/* Hidden torch — active for non-QR/non-PHOTO_MATCH challenges when flashlight is enabled */}
+      {!loading && alarm?.flashlightEnabled && cameraPermission?.granted && currentAction?.type !== 'QR_CODE' && currentAction?.type !== 'PHOTO_MATCH' && (
         <CameraView
           style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
           enableTorch={true}

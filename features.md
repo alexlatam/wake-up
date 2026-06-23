@@ -14,15 +14,26 @@ Apps para heavy sleepers compiten aquí. El reto reemplaza el swipe con una tare
 |-----|----------------------|
 | **Alarmy** | Photo, Math, Shake, Barcode/QR, Memory, Typing, Walking, Squat |
 | **AMdroid** | Math, Captcha, Wi-Fi connection, NFC scan, Barcode/QR, Light |
-| **Esta app** | TYPE_TEXT, SHAKE, WALK, QR_CODE |
+| **Esta app** | BUTTON, MATH, PUZZLE, TYPE_TEXT, SHAKE, WALK, QR_CODE, NFC, PHOTO_MATCH |
 
-### Gaps vs competidores
+### Challenges implementados
+
+| Challenge | Niveles | Notas |
+|-----------|---------|-------|
+| **BUTTON** | — | Dismiss simple, sin reto. Position configurable |
+| **MATH** | EASY / MEDIUM / MAXIMUM / EXTREME | Operaciones aritméticas, dificultad variable |
+| **PUZZLE** | EASY / MEDIUM / MAXIMUM / CUSTOM | Puzzle de imagen; CUSTOM permite rows×cols propios |
+| **TYPE_TEXT** | EASY / MEDIUM / MAXIMUM / CUSTOM | Escribir palabras; CUSTOM permite word count propio |
+| **SHAKE** | EASY / MEDIUM / MAXIMUM / EXTREME / CUSTOM | Agitar teléfono N segundos; CUSTOM configurable |
+| **WALK** | EASY / MEDIUM / MAXIMUM | Caminar N pasos medidos por podómetro |
+| **QR_CODE** | — | Escanear código QR registrado previamente |
+| **NFC** | — | Tocar tag NFC registrado (p.ej. pegado en cocina/baño) |
+| **PHOTO_MATCH** | — | Tomar foto que coincida con imagen registrada |
+
+### Gaps vs competidores (no implementados aún)
 
 | Challenge | Prioridad | Notas |
 |-----------|-----------|-------|
-| **Math** | Alta | Dificultad variable, cognitivo, universalmente adoptado |
-| **Photo** | Alta | Tomar foto de objeto específico — fuerza levantarse físicamente |
-| **NFC** | Alta | Tag físico en otra habitación — imposible de engañar dormido |
 | **Memory/tiles** | Media | Recordar patrón de colores/posiciones |
 | **Squat** | Media | Contado por acelerómetro |
 | **Captcha** | Baja | Texto distorsionado — variante de TYPE_TEXT |
@@ -68,13 +79,12 @@ Sleep Cycle usa mic + acelerómetro (patente US8493220) para detectar fase de su
 ## Roadmap sugerido
 
 ### Próximas features de alta prioridad
-1. **Math challenge** — operaciones aritméticas, dificultad configurable (fácil/media/difícil)
-2. **Photo challenge** — tomar foto de objeto registrado previamente (compara con IA o hash perceptual)
-3. **NFC challenge** — tocar tag físico NFC pegado en cocina/baño
+1. **Memory/tiles challenge** — patrón de colores a recordar y reproducir
+2. **Group alarm** — misma alarma sincronizada en múltiples usuarios
 
-### Media prioridad
-4. **Memory/tiles challenge** — patrón de colores a recordar y reproducir
-5. **Group alarm** — misma alarma sincronizada en múltiples usuarios
+### Baja prioridad
+3. **Squat challenge** — contado por acelerómetro
+4. **Captcha challenge** — variante cognitiva de TYPE_TEXT
 
 ### No priorizar ahora
 - Smart alarm / sleep tracking (alto costo, valor científico moderado)

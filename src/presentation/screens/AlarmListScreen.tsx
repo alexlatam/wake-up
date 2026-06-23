@@ -3,10 +3,9 @@ import { Alert, FlatList, Pressable, Switch, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAlarms } from '@/presentation/hooks/useAlarms';
 import { useAlarmPermissions } from '@/presentation/hooks/useAlarmPermissions';
+import { useTranslation } from '@/presentation/i18n/LanguageContext';
 import type { Alarm } from '@/domain/alarm/Alarm';
 import { Text } from '~/components/ui/text';
-
-const WEEKDAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 function formatTime(hour: number, minute: number): string {
   const period = hour < 12 ? 'AM' : 'PM';
@@ -15,25 +14,34 @@ function formatTime(hour: number, minute: number): string {
   return `${h}:${m} ${period}`;
 }
 
-function formatDays(days: ReadonlySet<number>): string {
+function formatDays(
+  days: ReadonlySet<number>,
+  everyDay: string,
+  weekdays: string,
+  weekends: string,
+  weekdayShort: string[],
+): string {
   const sorted = [...days].sort();
-  if (sorted.length === 7) return 'Every day';
-  if (sorted.length === 5 && !sorted.includes(0) && !sorted.includes(6)) return 'Weekdays';
-  if (sorted.length === 2 && sorted.includes(0) && sorted.includes(6)) return 'Weekends';
-  return sorted.map((d) => WEEKDAY_SHORT[d]).join(' · ');
+  if (sorted.length === 7) return everyDay;
+  if (sorted.length === 5 && !sorted.includes(0) && !sorted.includes(6)) return weekdays;
+  if (sorted.length === 2 && sorted.includes(0) && sorted.includes(6)) return weekends;
+  return sorted.map((d) => weekdayShort[d]).join(' · ');
 }
 
 function AlarmItem({
   alarm,
+  defaultLabel,
   onToggle,
   onEdit,
   onDelete,
 }: {
   alarm: Alarm;
+  defaultLabel: string;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onEdit}
@@ -45,10 +53,16 @@ function AlarmItem({
             {formatTime(alarm.schedule.hour, alarm.schedule.minute)}
           </Text>
           <Text className={`mt-1.5 text-base font-medium ${alarm.enabled ? 'text-foreground' : 'text-muted-foreground'}`}>
-            {alarm.label || 'Alarm'}
+            {alarm.label || defaultLabel}
           </Text>
           <Text className="mt-0.5 text-sm text-muted-foreground">
-            {formatDays(alarm.schedule.days)}
+            {formatDays(
+              alarm.schedule.days,
+              t.alarmList.everyDay,
+              t.alarmList.weekdays,
+              t.alarmList.weekends,
+              t.alarmList.weekdayShort,
+            )}
           </Text>
           <View className="mt-3 flex-row items-center gap-1.5">
             {alarm.actions.map((a, i) => (
@@ -88,6 +102,7 @@ function PermissionBanner({
   onPress: () => void;
   variant?: 'red' | 'yellow' | 'orange';
 }) {
+  const { t } = useTranslation();
   const colors = {
     red: 'bg-destructive/10 border-destructive/20',
     yellow: 'bg-yellow-500/10 border-yellow-500/20',
@@ -105,13 +120,14 @@ function PermissionBanner({
       className={`mx-4 mt-3 flex-row items-center gap-3 rounded-xl border px-4 py-3 ${colors[variant]} active:opacity-70`}
     >
       <Text className={`flex-1 text-sm font-medium ${textColors[variant]}`}>{message}</Text>
-      <Text className={`text-sm font-semibold ${textColors[variant]}`}>Fix →</Text>
+      <Text className={`text-sm font-semibold ${textColors[variant]}`}>{t.alarmList.fix}</Text>
     </Pressable>
   );
 }
 
 export function AlarmListScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { alarms, loading, toggle, remove, refresh: refreshAlarms } = useAlarms();
   const {
     notifications: hasNotifPermission,
@@ -142,11 +158,11 @@ export function AlarmListScreen() {
 
   function handleDelete(id: string, label: string) {
     Alert.alert(
-      'Delete Alarm',
-      `Delete "${label || 'Alarm'}"?`,
+      t.alarmList.deleteTitle,
+      t.alarmList.deleteMessage(label || t.alarmList.alarmDefault),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => remove(id) },
+        { text: t.alarmList.cancel, style: 'cancel' },
+        { text: t.alarmList.delete, style: 'destructive', onPress: () => remove(id) },
       ],
     );
   }
@@ -154,29 +170,27 @@ export function AlarmListScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <Text className="text-muted-foreground">Loading…</Text>
+        <Text className="text-muted-foreground">{t.alarmList.loading}</Text>
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-background">
-      {/* Permission banners */}
       {!hasNotifPermission && (
         <PermissionBanner
           variant="red"
-          message="Enable notifications so alarms can fire"
+          message={t.alarmList.permissionNotif}
           onPress={handleNotifBannerPress}
         />
       )}
       {!hasExactAlarmPermission && (
         <PermissionBanner
           variant="yellow"
-          message="Allow exact alarms for precise timing"
+          message={t.alarmList.permissionExactAlarm}
           onPress={openExactAlarmSettings}
         />
       )}
-
 
       <FlatList
         data={alarms}
@@ -185,13 +199,14 @@ export function AlarmListScreen() {
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center py-32">
             <Text className="text-5xl">⏰</Text>
-            <Text className="mt-5 text-xl font-semibold text-foreground">No alarms yet</Text>
-            <Text className="mt-2 text-sm text-muted-foreground">Tap + to create your first alarm</Text>
+            <Text className="mt-5 text-xl font-semibold text-foreground">{t.alarmList.noAlarmsTitle}</Text>
+            <Text className="mt-2 text-sm text-muted-foreground">{t.alarmList.noAlarmsSubtitle}</Text>
           </View>
         }
         renderItem={({ item }) => (
           <AlarmItem
             alarm={item}
+            defaultLabel={t.alarmList.alarmDefault}
             onToggle={() => toggle(item.id)}
             onEdit={() => router.push(`/alarm/${item.id}`)}
             onDelete={() => handleDelete(item.id, item.label)}

@@ -6,7 +6,7 @@ import { Text } from '~/components/ui/text';
 // Default image shown when user hasn't selected one.
 const DEFAULT_IMAGE = require('~/assets/icon.png');
 
-const GRID: Record<PuzzleLevel, { cols: number; rows: number }> = {
+const GRID: Record<Exclude<PuzzleLevel, 'CUSTOM'>, { cols: number; rows: number }> = {
   EASY: { cols: 2, rows: 3 },
   MEDIUM:  { cols: 3, rows: 4 },
   MAXIMUM: { cols: 6, rows: 6 },
@@ -26,13 +26,19 @@ function shuffled(n: number): number[] {
 export function PuzzleActionView({
   level,
   imageUri,
+  customRows,
+  customCols,
   onComplete,
 }: {
   level: PuzzleLevel;
   imageUri: string | null;
+  customRows?: number;
+  customCols?: number;
   onComplete: () => void;
 }) {
-  const { cols, rows } = GRID[level];
+  const { cols, rows } = level === 'CUSTOM'
+    ? { cols: customCols ?? 3, rows: customRows ?? 3 }
+    : GRID[level];
   const n = cols * rows;
 
   // slots[slotIndex] = pieceId (original position of the piece currently in that slot)

@@ -40,13 +40,16 @@ window.__compare=compare;
 
 export function PhotoMatchActionView({
   photoUri,
+  enableTorch,
   onComplete,
 }: {
   photoUri: string;
+  enableTorch?: boolean;
   onComplete: () => void;
 }) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [phase, setPhase] = useState<'viewfinder' | 'processing' | 'no_match'>('viewfinder');
+  const [phase, setPhase] = useState<'idle' | 'viewfinder' | 'processing' | 'no_match'>('idle');
+  const [captureError, setCaptureError] = useState<string | null>(null);
   const [refBase64, setRefBase64] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const webViewRef = useRef<WebView>(null);
@@ -57,7 +60,6 @@ export function PhotoMatchActionView({
       onComplete();
       return;
     }
-    if (!permission?.granted) requestPermission();
     manipulateAsync(photoUri, [{ resize: { width: 8, height: 8 } }], {
       format: SaveFormat.PNG,
       base64: true,
@@ -67,22 +69,32 @@ export function PhotoMatchActionView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleActivateCamera() {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) return;
+    }
+    setPhase('viewfinder');
+  }
+
   async function handleCapture() {
     if (capturingRef.current || !cameraRef.current || !refBase64) return;
     capturingRef.current = true;
+    setCaptureError(null);
     try {
       setPhase('processing');
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.3 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.3, skipProcessing: true });
       const resized = await manipulateAsync(
-        photo.uri,
+        photo!.uri,
         [{ resize: { width: 8, height: 8 } }],
         { format: SaveFormat.PNG, base64: true },
       );
       webViewRef.current?.injectJavaScript(
         `window.__compare("${refBase64}","${resized.base64 ?? ''}");true;`,
       );
-    } catch {
+    } catch (e) {
       capturingRef.current = false;
+      setCaptureError(e instanceof Error ? e.message : String(e));
       setPhase('viewfinder');
     }
   }
@@ -101,92 +113,102 @@ export function PhotoMatchActionView({
     }
   }
 
-  if (!permission) {
+  if (phase === 'idle') {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-white/50">Requesting camera…</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View className="flex-1 items-center justify-center gap-4 px-8">
-        <Text className="text-center text-base text-white/70">
-          Camera permission required to take a photo.
+      <View className="flex-1 items-center justify-center gap-6 px-8">
+        {photoUri ? (
+          <View className="items-center gap-2">
+            <Image
+              source={{ uri: photoUri }}
+              style={{ width: 160, height: 160, borderRadius: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' }}
+              resizeMode="cover"
+            />
+            <Text className="text-sm text-white/50">Target photo</Text>
+          </View>
+        ) : null}
+        <Text className="text-center text-base text-white/70 px-4">
+          Take a photo of the same location to dismiss the alarm.
         </Text>
         <Pressable
-          onPress={requestPermission}
-          className="rounded-full bg-white/20 px-8 py-4"
+          onPress={handleActivateCamera}
+          className="rounded-full bg-white/20 px-10 py-5"
         >
-          <Text className="font-semibold text-white">Grant Permission</Text>
+          <Text className="text-base font-semibold text-white">Activate Camera</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View className="flex-1">
-      <CameraView ref={cameraRef} className="flex-1" facing="back" />
+    <View style={{ flex: 1 }}>
+      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" enableTorch={enableTorch}>
+        {/* Controls are CHILDREN of CameraView so touches register on Android. */}
 
-      {/* Reference photo thumbnail */}
-      {photoUri ? (
-        <View className="absolute left-4 top-4">
-          <Image
-            source={{ uri: photoUri }}
-            style={{ width: 80, height: 80, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.8)' }}
-            resizeMode="cover"
-          />
-          <Text className="mt-1 text-center text-xs text-white/70">Target</Text>
-        </View>
-      ) : null}
-
-      {/* Processing overlay */}
-      {phase === 'processing' && (
-        <View className="absolute inset-0 items-center justify-center bg-black/60">
-          <ActivityIndicator color="white" size="large" />
-          <Text className="mt-3 text-base text-white">Comparing…</Text>
-        </View>
-      )}
-
-      {/* No-match overlay */}
-      {phase === 'no_match' && (
-        <View className="absolute inset-0 items-center justify-center bg-black/70">
-          <Text className="mb-2 text-5xl">❌</Text>
-          <Text className="mb-1 text-xl font-bold text-white">No match</Text>
-          <Text className="mb-6 px-8 text-center text-sm text-white/60">
-            Point at the same spot shown in the thumbnail
-          </Text>
-          <Pressable
-            onPress={() => setPhase('viewfinder')}
-            className="rounded-full bg-white/20 px-8 py-4"
-          >
-            <Text className="font-semibold text-white">Try Again</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Shutter button */}
-      {phase === 'viewfinder' && (
-        <View className="absolute bottom-0 left-0 right-0 items-center pb-8">
-          <View className="mb-5 rounded-2xl bg-black/60 px-6 py-3">
-            <Text className="text-center text-sm text-white/80">
-              Point at the same location and take a photo
-            </Text>
+        {/* Reference photo thumbnail */}
+        {photoUri ? (
+          <View className="absolute left-4 top-4">
+            <Image
+              source={{ uri: photoUri }}
+              style={{ width: 80, height: 80, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.8)' }}
+              resizeMode="cover"
+            />
+            <Text className="mt-1 text-center text-xs text-white/70">Target</Text>
           </View>
-          <Pressable
-            onPress={handleCapture}
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              borderWidth: 4,
-              borderColor: 'white',
-              backgroundColor: 'rgba(255,255,255,0.3)',
-            }}
-          />
-        </View>
-      )}
+        ) : null}
+
+        {/* Processing overlay */}
+        {phase === 'processing' && (
+          <View className="absolute inset-0 items-center justify-center bg-black/60">
+            <ActivityIndicator color="white" size="large" />
+            <Text className="mt-3 text-base text-white">Comparing…</Text>
+          </View>
+        )}
+
+        {/* No-match overlay */}
+        {phase === 'no_match' && (
+          <View className="absolute inset-0 items-center justify-center bg-black/70">
+            <Text className="mb-2 text-5xl">❌</Text>
+            <Text className="mb-1 text-xl font-bold text-white">No match</Text>
+            <Text className="mb-6 px-8 text-center text-sm text-white/60">
+              Point at the same spot shown in the thumbnail
+            </Text>
+            <Pressable
+              onPress={() => setPhase('viewfinder')}
+              className="rounded-full bg-white/20 px-8 py-4"
+            >
+              <Text className="font-semibold text-white">Try Again</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Shutter button */}
+        {phase === 'viewfinder' && (
+          <View className="absolute bottom-0 left-0 right-0 items-center pb-8">
+            {captureError ? (
+              <View className="mb-3 mx-4 rounded-xl bg-red-900/80 px-4 py-2">
+                <Text className="text-center text-xs text-red-200">{captureError}</Text>
+              </View>
+            ) : null}
+            <View className="mb-5 rounded-2xl bg-black/60 px-6 py-3">
+              <Text className="text-center text-sm text-white/80">
+                {refBase64 ? 'Point at the same location and take a photo' : 'Preparing…'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleCapture}
+              disabled={!refBase64}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                borderWidth: 4,
+                borderColor: refBase64 ? 'white' : 'rgba(255,255,255,0.3)',
+                backgroundColor: refBase64 ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
+              }}
+            />
+          </View>
+        )}
+      </CameraView>
 
       {/* Hidden WebView — perceptual hash computation */}
       <WebView

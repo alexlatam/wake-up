@@ -65,11 +65,23 @@ export function QrCodeActionView({
   return (
     <View className="flex-1">
       <CameraView
-        className="flex-1"
+        style={{ flex: 1 }}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={handleBarcodeScan}
         enableTorch={enableTorch}
       />
+      <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+        <View
+          style={{
+            width: 240,
+            height: 240,
+            borderWidth: 3,
+            borderColor: wrongScan ? '#f87171' : 'white',
+            borderRadius: 16,
+            backgroundColor: 'transparent',
+          }}
+        />
+      </View>
       <View className="absolute bottom-0 left-0 right-0 items-center pb-8 pt-4">
         <View className="rounded-2xl bg-black/60 px-6 py-3">
           {wrongScan ? (
