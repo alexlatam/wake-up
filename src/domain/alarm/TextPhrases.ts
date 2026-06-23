@@ -1,6 +1,6 @@
 import type { TypeTextLevel } from './Action';
 
-const PHRASES: Record<TypeTextLevel, string[]> = {
+const PHRASES: Record<Exclude<TypeTextLevel, 'CUSTOM'>, string[]> = {
   // Easy: one sentence, max 10 words
   EASY: [
     'The sun is shining today.',
@@ -37,7 +37,30 @@ const PHRASES: Record<TypeTextLevel, string[]> = {
   ],
 };
 
-export function getRandomPhrase(level: TypeTextLevel): string {
-  const list = PHRASES[level] ?? PHRASES['EASY'];
+// Individual sentences extracted from all phrase pools, used to build custom-length texts.
+const SENTENCE_POOL: string[] = [
+  ...PHRASES.EASY,
+  ...PHRASES.MEDIUM.flatMap((p) => p.split('. ').map((s) => (s.endsWith('.') ? s : s + '.'))),
+];
+
+export function getRandomPhrase(level: Exclude<TypeTextLevel, 'CUSTOM'>): string {
+  const list = PHRASES[level];
   return list[Math.floor(Math.random() * list.length)];
+}
+
+export function getCustomPhrase(wordCount: number): string {
+  const pool = [...SENTENCE_POOL];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  let result = '';
+  let wc = 0;
+  for (const sentence of pool) {
+    const w = sentence.trim().split(/\s+/).length;
+    if (result && wc >= wordCount) break;
+    result = result ? result + ' ' + sentence : sentence;
+    wc += w;
+  }
+  return result || pool[0];
 }

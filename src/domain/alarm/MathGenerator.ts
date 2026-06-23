@@ -91,5 +91,8 @@ export function generateMath(level: MathLevel, rng: RNG = Math.random): MathProb
     case 'MEDIUM':   return medio(rng);
     case 'MAXIMUM':  return maximo(rng);
     case 'EXTREME': return extremo(rng);
+    default:
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      throw new Error(`Unknown MathLevel: ${level as any}`);
   }
 }
