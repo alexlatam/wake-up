@@ -1,6 +1,6 @@
 import '../global.css';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, ActivityIndicator, useColorScheme, View } from 'react-native';
+import { AppState, ActivityIndicator, Pressable, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import notifee, { EventType } from '@notifee/react-native';
@@ -14,22 +14,107 @@ import { NotifeeNotificationScheduler } from '@/infrastructure/notifications/Not
 import { SyncAlarms } from '@/application/use-cases/SyncAlarms';
 import { SystemClock } from '@/infrastructure/system/SystemClock';
 import { UuidGenerator } from '@/infrastructure/system/UuidGenerator';
+import { LanguageProvider, useTranslation } from '@/presentation/i18n/LanguageContext';
+import { Text } from '~/components/ui/text';
 
-// Approximate hex values for HSL CSS vars in global.css
-const COLORS = {
-  light: { bg: '#ffffff', text: '#09090f' },
-  dark: { bg: '#09090b', text: '#fafafa' },
-};
+function GearIcon() {
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() => router.push('/settings')}
+      hitSlop={12}
+      style={{ marginRight: 8, padding: 4 }}
+    >
+      <Text style={{ fontSize: 20, color: '#e8f5e8' }}>⚙️</Text>
+    </Pressable>
+  );
+}
+
+function AppContent() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    notifee.getInitialNotification().then(async (initial) => {
+      const alarmId = initial?.notification.data?.alarmId;
+      if (typeof alarmId === 'string') {
+        router.replace(`/ringing?alarmId=${alarmId}`);
+        return;
+      }
+
+      const { alarmSessionRepository } = getContainer();
+      const active = await alarmSessionRepository.findActive();
+      if (active) {
+        router.replace(`/ringing?alarmId=${active.alarmId}`);
+      }
+    });
+
+    const unsub = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.DELIVERED) {
+        const alarmId = detail.notification?.data?.alarmId;
+        if (typeof alarmId === 'string' && !useSessionStore.getState().isRinging) {
+          router.push(`/ringing?alarmId=${alarmId}`);
+        }
+      }
+    });
+
+    const appStateSub = AppState.addEventListener('change', async (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        if (!useSessionStore.getState().isRinging) {
+          const { alarmSessionRepository } = getContainer();
+          const active = await alarmSessionRepository.findActive();
+          if (active) {
+            router.replace(`/ringing?alarmId=${active.alarmId}`);
+          }
+        }
+      }
+      appState.current = nextState;
+    });
+
+    return () => {
+      unsub();
+      appStateSub.remove();
+    };
+  }, [router]);
+
+  return (
+    <GestureHandlerRootView className="dark flex-1">
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: '#0a160c' },
+          headerTintColor: '#e8f5e8',
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: '#0a160c' },
+        }}
+      >
+        <Stack.Screen
+          name="index"
+          options={{
+            title: t.nav.alarms,
+            headerRight: () => <GearIcon />,
+          }}
+        />
+        <Stack.Screen name="alarm/[id]" options={{ title: t.nav.alarm }} />
+        <Stack.Screen name="challenges/index" options={{ title: t.nav.challenges }} />
+        <Stack.Screen name="challenges/[type]" options={{ title: t.nav.challenge }} />
+        <Stack.Screen name="settings" options={{ title: t.settings.title }} />
+        <Stack.Screen
+          name="ringing"
+          options={{
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
+      </Stack>
+    </GestureHandlerRootView>
+  );
+}
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
-  const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const theme = isDark ? COLORS.dark : COLORS.light;
-  const appState = useRef(AppState.currentState);
 
-  // Initialise persistence, DI, sync alarms.
   useEffect(() => {
     const alarmRepository = new SqliteAlarmRepository(db);
     const notificationScheduler = new NotifeeNotificationScheduler();
@@ -51,58 +136,6 @@ export default function RootLayout() {
       .catch(console.error);
   }, []);
 
-  // After ready: handle alarm that fired while app was closed, or recover interrupted session.
-  useEffect(() => {
-    if (!ready) return;
-
-    notifee.getInitialNotification().then(async (initial) => {
-      const alarmId = initial?.notification.data?.alarmId;
-      if (typeof alarmId === 'string') {
-        router.replace(`/ringing?alarmId=${alarmId}`);
-        return;
-      }
-
-      // No launch notification — check for interrupted session (app killed mid-challenge)
-      const { alarmSessionRepository } = getContainer();
-      const active = await alarmSessionRepository.findActive();
-      if (active) {
-        router.replace(`/ringing?alarmId=${active.alarmId}`);
-      }
-    });
-
-    // Navigate to ringing screen when alarm fires with app in foreground.
-    // Skip if already ringing — the new session is queued in DB and will be picked up after dismiss.
-    const unsub = notifee.onForegroundEvent(({ type, detail }) => {
-      if (type === EventType.DELIVERED) {
-        const alarmId = detail.notification?.data?.alarmId;
-        if (typeof alarmId === 'string' && !useSessionStore.getState().isRinging) {
-          router.push(`/ringing?alarmId=${alarmId}`);
-        }
-      }
-    });
-
-    // When app returns to foreground from background (e.g. via full-screen intent),
-    // check for an active session that the background handler may have started.
-    // Skip if already ringing — RingingScreen owns its own lifecycle.
-    const appStateSub = AppState.addEventListener('change', async (nextState) => {
-      if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        if (!useSessionStore.getState().isRinging) {
-          const { alarmSessionRepository } = getContainer();
-          const active = await alarmSessionRepository.findActive();
-          if (active) {
-            router.replace(`/ringing?alarmId=${active.alarmId}`);
-          }
-        }
-      }
-      appState.current = nextState;
-    });
-
-    return () => {
-      unsub();
-      appStateSub.remove();
-    };
-  }, [ready, router]);
-
   if (!ready) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -112,28 +145,8 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView className="dark flex-1">
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: '#0a160c' },
-          headerTintColor: '#e8f5e8',
-          headerShadowVisible: false,
-          contentStyle: { backgroundColor: '#0a160c' },
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: 'WakeUp' }} />
-        <Stack.Screen name="alarm/[id]" options={{ title: 'Alarm' }} />
-        <Stack.Screen name="challenges/index" options={{ title: 'Challenges' }} />
-        <Stack.Screen name="challenges/[type]" options={{ title: 'Challenge' }} />
-        <Stack.Screen
-          name="ringing"
-          options={{
-            headerShown: false,
-            gestureEnabled: false,
-            animation: 'fade',
-          }}
-        />
-      </Stack>
-    </GestureHandlerRootView>
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
