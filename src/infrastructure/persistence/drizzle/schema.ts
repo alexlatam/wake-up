@@ -26,6 +26,10 @@ export const alarmActions = sqliteTable(
     type: text('type').notNull(), // 'BUTTON' | 'MATH' | 'PUZZLE'
     level: text('level'), // MathLevel | PuzzleLevel | null
     imageUri: text('image_uri'), // null unless PUZZLE
+    puzzleRows: integer('puzzle_rows'), // null unless PUZZLE + CUSTOM
+    puzzleCols: integer('puzzle_cols'), // null unless PUZZLE + CUSTOM
+    typeTextWordCount: integer('type_text_word_count'), // null unless TYPE_TEXT + CUSTOM
+    shakeSeconds: integer('shake_seconds'), // null unless SHAKE + CUSTOM
   },
   (table) => [uniqueIndex('alarm_actions_alarm_position').on(table.alarmId, table.position)],
 );

@@ -13,8 +13,9 @@ import { Schedule } from '../../../domain/alarm/Schedule';
 function createTestDb() {
   const sqlite = new Database(':memory:');
   const db = drizzle(sqlite, { schema });
-  // Run schema creation directly (no migration files needed for tests)
+  // Full current schema — keep in sync with src/infrastructure/persistence/drizzle/schema.ts
   sqlite.exec(`
+    PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS alarms (
       id TEXT PRIMARY KEY,
       label TEXT NOT NULL,
@@ -24,7 +25,9 @@ function createTestDb() {
       enabled INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
-      ringtone_uri TEXT
+      ringtone_uri TEXT,
+      vibration_enabled INTEGER NOT NULL DEFAULT 1,
+      flashlight_enabled INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS alarm_actions (
       id TEXT PRIMARY KEY,
@@ -33,11 +36,15 @@ function createTestDb() {
       type TEXT NOT NULL,
       level TEXT,
       image_uri TEXT,
+      puzzle_rows INTEGER,
+      puzzle_cols INTEGER,
+      type_text_word_count INTEGER,
+      shake_seconds INTEGER,
       UNIQUE(alarm_id, position)
     );
     CREATE TABLE IF NOT EXISTS alarm_sessions (
       id TEXT PRIMARY KEY,
-      alarm_id TEXT NOT NULL REFERENCES alarms(id),
+      alarm_id TEXT NOT NULL REFERENCES alarms(id) ON DELETE CASCADE,
       fired_at INTEGER NOT NULL,
       current_index INTEGER NOT NULL DEFAULT 0,
       total_actions INTEGER NOT NULL,
@@ -59,6 +66,7 @@ const makeAlarm = (id = 'alarm-1') =>
     ],
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
+    ringtoneUri: null,
   });
 
 describe('SqliteAlarmRepository (integration)', () => {
@@ -106,6 +114,7 @@ describe('SqliteAlarmRepository (integration)', () => {
       actions: [{ type: 'BUTTON', position: 0 }],
       createdAt: new Date('2024-01-01T00:00:00Z'),
       updatedAt: new Date('2024-06-01T00:00:00Z'),
+      ringtoneUri: null,
     });
     await repo.save(updated);
     const found = await repo.findById('alarm-1');

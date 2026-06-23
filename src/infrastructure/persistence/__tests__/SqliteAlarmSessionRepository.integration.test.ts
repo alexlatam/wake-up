@@ -131,8 +131,14 @@ describe('SqliteAlarmSessionRepository (integration)', () => {
   });
 
   describe('findActive', () => {
-    it('returns any non-DISMISSED session', async () => {
-      await repo.save(makeSession({ id: 's1', status: 'IN_PROGRESS' }));
+    // findActive filters sessions older than 8 hours (stale ghost-session guard).
+    // Tests must use Date.now()-relative timestamps to stay within the cutoff.
+    const NOW = Date.now();
+    const H = 60 * 60 * 1000; // one hour in ms
+
+    it('returns a non-DISMISSED session within the 8h window', async () => {
+      const recentFiredAt = new Date(NOW - 1 * H); // 1h ago — well within cutoff
+      await repo.save(makeSession({ id: 's1', firedAt: recentFiredAt, status: 'IN_PROGRESS' }));
       const found = await repo.findActive();
       expect(found!.id).toBe('s1');
     });
@@ -147,14 +153,38 @@ describe('SqliteAlarmSessionRepository (integration)', () => {
       expect(await repo.findActive()).toBeNull();
     });
 
-    it('returns most recent non-DISMISSED when multiple exist across alarms', async () => {
-      const older = new Date('2026-01-08T06:00:00.000Z');
-      const newer = new Date('2026-01-08T08:00:00.000Z');
+    it('returns OLDEST (FIFO) non-DISMISSED session when multiple exist across alarms', async () => {
+      // findActive sorts ascending (oldest first) and returns sorted[0] — FIFO semantics
+      const older = new Date(NOW - 3 * H); // 3h ago
+      const newer = new Date(NOW - 1 * H); // 1h ago
       await repo.save(makeSession({ id: 's-old', alarmId: 'alarm-1', firedAt: older, status: 'RINGING' }));
       await repo.save(makeSession({ id: 's-new', alarmId: 'alarm-2', firedAt: newer, status: 'RINGING' }));
       const found = await repo.findActive();
-      expect(found!.id).toBe('s-new');
+      expect(found!.id).toBe('s-old'); // oldest first (FIFO)
     });
+
+    it('ignores sessions older than 8 hours (stale cutoff)', async () => {
+      const stale = new Date(NOW - 9 * H); // 9h ago — outside 8h cutoff
+      await repo.save(makeSession({ id: 's-stale', firedAt: stale, status: 'RINGING' }));
+      expect(await repo.findActive()).toBeNull();
+    });
+
+    it('includes sessions just inside the 8h boundary (7h 59min ago)', async () => {
+      const justInside = new Date(NOW - (8 * H - 60_000)); // 8h minus 1min
+      await repo.save(makeSession({ id: 's-fresh', firedAt: justInside, status: 'RINGING' }));
+      const found = await repo.findActive();
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe('s-fresh');
+    });
+
+    it('ignores DISMISSED sessions even when they are within the 8h window', async () => {
+      const recent = new Date(NOW - 1 * H);
+      await repo.save(makeSession({ id: 's-dismissed', firedAt: recent, status: 'DISMISSED' }));
+      expect(await repo.findActive()).toBeNull();
+    });
+
+    // TODO: toSession casts row.status as SessionStatus without validation.
+    // An unknown status string written directly to the DB would survive the cast unchecked.
   });
 
   describe('status persistence', () => {

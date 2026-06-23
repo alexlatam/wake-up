@@ -3,6 +3,9 @@ import { expo } from './client';
 export async function initDatabase(): Promise<void> {
   await expo.execAsync('PRAGMA foreign_keys = ON;');
   await expo.execAsync(`
+    CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  `);
+  await expo.execAsync(`
     CREATE TABLE IF NOT EXISTS alarms (
       id TEXT PRIMARY KEY,
       label TEXT NOT NULL,
@@ -46,6 +49,16 @@ export async function initDatabase(): Promise<void> {
   await expo.execAsync(`
     ALTER TABLE alarms ADD COLUMN flashlight_enabled INTEGER NOT NULL DEFAULT 0;
   `).catch(() => {});
+
+  // v5: add puzzle_rows and puzzle_cols for CUSTOM puzzle grid
+  await expo.execAsync(`ALTER TABLE alarm_actions ADD COLUMN puzzle_rows INTEGER;`).catch(() => {});
+  await expo.execAsync(`ALTER TABLE alarm_actions ADD COLUMN puzzle_cols INTEGER;`).catch(() => {});
+
+  // v6: add type_text_word_count for CUSTOM TYPE_TEXT length
+  await expo.execAsync(`ALTER TABLE alarm_actions ADD COLUMN type_text_word_count INTEGER;`).catch(() => {});
+
+  // v7: add shake_seconds for CUSTOM SHAKE duration
+  await expo.execAsync(`ALTER TABLE alarm_actions ADD COLUMN shake_seconds INTEGER;`).catch(() => {});
 
   // v3: recreate alarm_sessions with ON DELETE CASCADE so deleting an alarm cascades to its sessions
   await expo.execAsync(`

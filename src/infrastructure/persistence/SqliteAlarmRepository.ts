@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and, notInArray } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import type { AlarmRepository } from '../../domain/ports/AlarmRepository';
 import type { Alarm } from '../../domain/alarm/Alarm';
@@ -35,14 +35,26 @@ export class SqliteAlarmRepository implements AlarmRepository {
   async save(alarm: Alarm): Promise<void> {
     const alarmRow = AlarmMapper.toRow(alarm);
     const actionRows = AlarmMapper.toActionRows(alarm);
+    // Safety invariant: Alarm always has ≥1 action (enforced by constructor).
+    // Order of operations avoids a zero-action window without a transaction:
+    //   1. Upsert the alarm row (idempotent).
+    //   2. Upsert each new action row by id — adds new, updates changed.
+    //   3. Delete action rows whose positions are no longer in the new set.
+    // At no point does the alarm have zero actions in the DB.
     await this.db
       .insert(alarms)
       .values(alarmRow)
       .onConflictDoUpdate({ target: alarms.id, set: alarmRow });
-    await this.db.delete(alarmActions).where(eq(alarmActions.alarmId, alarm.id));
-    if (actionRows.length > 0) {
-      await this.db.insert(alarmActions).values(actionRows);
+    for (const actionRow of actionRows) {
+      await this.db
+        .insert(alarmActions)
+        .values(actionRow)
+        .onConflictDoUpdate({ target: alarmActions.id, set: actionRow });
     }
+    const newPositions = actionRows.map((r) => r.position);
+    await this.db
+      .delete(alarmActions)
+      .where(and(eq(alarmActions.alarmId, alarm.id), notInArray(alarmActions.position, newPositions)));
   }
 
   async delete(id: string): Promise<void> {
