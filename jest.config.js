@@ -10,5 +10,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^~/(.*)$': '<rootDir>/$1',
+    '^test-renderer$': '<rootDir>/node_modules/test-renderer/dist/index.cjs',
   },
 };
