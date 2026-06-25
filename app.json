@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "WakeUp",
+    "name": "WakeUpBuddy",
     "slug": "wake-up",
     "version": "1.0.0",
     "scheme": "wakeup",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/main_icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,

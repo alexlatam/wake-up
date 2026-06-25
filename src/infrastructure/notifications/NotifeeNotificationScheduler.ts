@@ -17,7 +17,7 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
     if (this.channelReady) return;
     await notifee.createChannel({
       id: CHANNEL_ID,
-      name: 'WakeUp Alarms',
+      name: 'WakeUpBuddy Alarms',
       importance: AndroidImportance.HIGH,
       bypassDnd: true,
       vibration: true,
@@ -41,7 +41,7 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
     await notifee.createTriggerNotification(
       {
         id: `alarm-${alarm.id}`,
-        title: 'WakeUp Alarm',
+        title: 'WakeUpBuddy Alarm',
         body: alarm.label || 'Time to wake up!',
         android: {
           channelId: CHANNEL_ID,

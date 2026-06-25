@@ -2,7 +2,7 @@ import type { Translations } from './en';
 
 export const es: Translations = {
   nav: {
-    alarms: 'WakeUp',
+    alarms: 'WakeUpBuddy',
     alarm: 'Alarma',
     challenges: 'Desafíos',
     challenge: 'Desafío',
@@ -18,7 +18,9 @@ export const es: Translations = {
     noAlarmsTitle: 'Sin alarmas',
     noAlarmsSubtitle: 'Toca + para crear tu primera alarma',
     permissionNotif: 'Activa las notificaciones para que las alarmas funcionen',
+    permissionFullScreen: 'Permite alertas en pantalla completa para que las alarmas aparezcan sobre la pantalla de bloqueo',
     permissionExactAlarm: 'Permite alarmas exactas para mayor precisión',
+    permissionBattery: 'Desactiva la optimización de batería para que las alarmas suenen a tiempo',
     fix: 'Arreglar →',
     deleteTitle: 'Eliminar alarma',
     deleteMessage: (label: string) => `¿Eliminar "${label}"?`,

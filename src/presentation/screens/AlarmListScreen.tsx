@@ -132,9 +132,13 @@ export function AlarmListScreen() {
   const {
     notifications: hasNotifPermission,
     exactAlarm: hasExactAlarmPermission,
+    batteryOptimized,
+    fullScreenIntent: hasFullScreenIntent,
     requestNotifications,
     openNotificationSettings,
     openExactAlarmSettings,
+    openBatterySettings,
+    openFullScreenIntentSettings,
     refresh: refreshPermissions,
   } = useAlarmPermissions();
 
@@ -184,11 +188,25 @@ export function AlarmListScreen() {
           onPress={handleNotifBannerPress}
         />
       )}
+      {!hasFullScreenIntent && (
+        <PermissionBanner
+          variant="red"
+          message={t.alarmList.permissionFullScreen}
+          onPress={openFullScreenIntentSettings}
+        />
+      )}
       {!hasExactAlarmPermission && (
         <PermissionBanner
           variant="yellow"
           message={t.alarmList.permissionExactAlarm}
           onPress={openExactAlarmSettings}
+        />
+      )}
+      {batteryOptimized && (
+        <PermissionBanner
+          variant="orange"
+          message={t.alarmList.permissionBattery}
+          onPress={openBatterySettings}
         />
       )}
 

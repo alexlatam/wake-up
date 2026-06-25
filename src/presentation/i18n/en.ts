@@ -1,6 +1,6 @@
 export const en = {
   nav: {
-    alarms: 'WakeUp',
+    alarms: 'WakeUpBuddy',
     alarm: 'Alarm',
     challenges: 'Challenges',
     challenge: 'Challenge',
@@ -16,7 +16,9 @@ export const en = {
     noAlarmsTitle: 'No alarms yet',
     noAlarmsSubtitle: 'Tap + to create your first alarm',
     permissionNotif: 'Enable notifications so alarms can fire',
+    permissionFullScreen: 'Allow full-screen alerts so alarms appear over the lock screen',
     permissionExactAlarm: 'Allow exact alarms for precise timing',
+    permissionBattery: 'Disable battery optimization so alarms fire on time',
     fix: 'Fix →',
     deleteTitle: 'Delete Alarm',
     deleteMessage: (label: string) => `Delete "${label}"?`,
