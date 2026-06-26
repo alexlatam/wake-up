@@ -1,6 +1,6 @@
 import '../global.css';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, ActivityIndicator, Pressable, View } from 'react-native';
+import { AppState, ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import notifee, { EventType } from '@notifee/react-native';
@@ -15,20 +15,7 @@ import { SyncAlarms } from '@/application/use-cases/SyncAlarms';
 import { SystemClock } from '@/infrastructure/system/SystemClock';
 import { UuidGenerator } from '@/infrastructure/system/UuidGenerator';
 import { LanguageProvider, useTranslation } from '@/presentation/i18n/LanguageContext';
-import { Text } from '~/components/ui/text';
-
-function GearIcon() {
-  const router = useRouter();
-  return (
-    <Pressable
-      onPress={() => router.push('/settings')}
-      hitSlop={12}
-      style={{ marginRight: 8, padding: 4 }}
-    >
-      <Text style={{ fontSize: 20, color: '#e8f5e8' }}>⚙️</Text>
-    </Pressable>
-  );
-}
+import { DrawerProvider, DrawerMenu } from '@/presentation/components/AppDrawer';
 
 function AppContent() {
   const { t } = useTranslation();
@@ -85,19 +72,18 @@ function AppContent() {
           headerStyle: { backgroundColor: '#0a160c' },
           headerTintColor: '#e8f5e8',
           headerShadowVisible: false,
+          headerTitleAlign: 'left',
           contentStyle: { backgroundColor: '#0a160c' },
         }}
       >
         <Stack.Screen
           name="index"
-          options={{
-            title: t.nav.alarms,
-            headerRight: () => <GearIcon />,
-          }}
+          options={{ title: t.nav.alarms }}
         />
         <Stack.Screen name="alarm/[id]" options={{ title: t.nav.alarm }} />
         <Stack.Screen name="challenges/index" options={{ title: t.nav.challenges }} />
         <Stack.Screen name="challenges/[type]" options={{ title: t.nav.challenge }} />
+        <Stack.Screen name="quick-alarm" options={{ title: t.nav.quickAlarm }} />
         <Stack.Screen name="settings" options={{ title: t.settings.title }} />
         <Stack.Screen
           name="ringing"
@@ -108,6 +94,7 @@ function AppContent() {
           }}
         />
       </Stack>
+      <DrawerMenu />
     </GestureHandlerRootView>
   );
 }
@@ -146,7 +133,9 @@ export default function RootLayout() {
 
   return (
     <LanguageProvider>
-      <AppContent />
+      <DrawerProvider>
+        <AppContent />
+      </DrawerProvider>
     </LanguageProvider>
   );
 }
