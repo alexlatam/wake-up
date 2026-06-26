@@ -4,6 +4,7 @@ export const en = {
     alarm: 'Alarm',
     challenges: 'Challenges',
     challenge: 'Challenge',
+    quickAlarm: 'Quick Alarm',
     settings: 'Settings',
   },
   alarmList: {
@@ -261,6 +262,10 @@ export const en = {
       levels?: { label: string; sublabel: string; description: string }[];
       tip?: string;
     }>,
+  },
+  quickAlarm: {
+    subtitle: 'Alarm fires in…',
+    creating: '…',
   },
   settings: {
     title: 'Settings',

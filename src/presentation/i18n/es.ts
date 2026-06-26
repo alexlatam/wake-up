@@ -6,6 +6,7 @@ export const es: Translations = {
     alarm: 'Alarma',
     challenges: 'Desafíos',
     challenge: 'Desafío',
+    quickAlarm: 'Alarma rápida',
     settings: 'Configuración',
   },
   alarmList: {
@@ -256,6 +257,10 @@ export const es: Translations = {
         tip: 'Ideal para: obligarte a ir físicamente a un lugar específico — tu cocina, baño o puerta principal.',
       },
     },
+  },
+  quickAlarm: {
+    subtitle: 'La alarma suena en…',
+    creating: '…',
   },
   settings: {
     title: 'Configuración',
