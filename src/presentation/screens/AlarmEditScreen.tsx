@@ -19,7 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAlarms } from '@/presentation/hooks/useAlarms';
 import { getContainer } from '@/infrastructure/di/container';
 import { useTranslation } from '@/presentation/i18n/LanguageContext';
-import type { ActionConfig, MathLevel, PuzzleLevel, ShakeLevel, TypeTextLevel, WalkLevel, Weekday } from '@/domain/alarm/Action';
+import type { ActionConfig, ActionType, MathLevel, PuzzleLevel, ShakeLevel, TypeTextLevel, WalkLevel, Weekday } from '@/domain/alarm/Action';
 import { Text } from '~/components/ui/text';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -283,51 +283,180 @@ function TimePicker({
   );
 }
 
-// ─── Action row ───────────────────────────────────────────────────────────────
+// ─── Challenge picker ─────────────────────────────────────────────────────────
 
-function ChipButton({
-  label,
-  active,
-  onPress,
-  variant = 'level',
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-  variant?: 'type' | 'level';
-}) {
-  const activeBg = variant === 'type' ? 'bg-indigo-500' : 'bg-primary';
-  const activeText = variant === 'type' ? 'text-white' : 'text-primary-foreground';
+const PICKER_TYPES: ActionType[] = [
+  'MATH', 'PUZZLE', 'TYPE_TEXT', 'SHAKE', 'WALK', 'PHOTO_MATCH', 'QR_CODE', 'NFC', 'BUTTON',
+];
+
+const CHALLENGE_ICON: Record<string, string> = {
+  BUTTON: '🔘',
+  MATH: '🧮',
+  PUZZLE: '🧩',
+  TYPE_TEXT: '⌨️',
+  SHAKE: '📳',
+  WALK: '🚶',
+  QR_CODE: '🔲',
+  NFC: '📡',
+  PHOTO_MATCH: '📸',
+};
+
+function defaultDraft(type: ActionType): DraftAction {
+  if (type === 'BUTTON') return { type: 'BUTTON' };
+  if (type === 'MATH') return { type: 'MATH', level: 'MEDIUM' };
+  if (type === 'PUZZLE') return { type: 'PUZZLE', level: 'EASY', imageUri: null, customRows: 3, customCols: 3 };
+  if (type === 'TYPE_TEXT') return { type: 'TYPE_TEXT', level: 'EASY', customWordCount: 15 };
+  if (type === 'SHAKE') return { type: 'SHAKE', level: 'EASY', customSeconds: 30 };
+  if (type === 'WALK') return { type: 'WALK', level: 'EASY' };
+  if (type === 'QR_CODE') return { type: 'QR_CODE', qrCodeValue: null };
+  if (type === 'NFC') return { type: 'NFC', nfcTagId: null };
+  return { type: 'PHOTO_MATCH', photoUri: null };
+}
+
+function getChallengePreview(draft: DraftAction): string {
+  if (draft.type === 'MATH') return '12 × 7 + 3 = ?';
+  if (draft.type === 'PUZZLE') {
+    if (draft.level === 'CUSTOM') return `${draft.customRows} × ${draft.customCols} grid`;
+    if (draft.level === 'EASY') return '2 × 3 grid — 6 tiles';
+    if (draft.level === 'MEDIUM') return '3 × 4 grid — 12 tiles';
+    return '4 × 6 grid — 24 tiles';
+  }
+  if (draft.type === 'TYPE_TEXT') {
+    const words = draft.level === 'CUSTOM' ? draft.customWordCount :
+      draft.level === 'EASY' ? 5 : draft.level === 'MEDIUM' ? 10 : 20;
+    return `Type ${words} words to dismiss`;
+  }
+  if (draft.type === 'SHAKE') {
+    const secs = draft.level === 'CUSTOM' ? draft.customSeconds :
+      draft.level === 'EASY' ? 10 : draft.level === 'MEDIUM' ? 20 : draft.level === 'MAXIMUM' ? 30 : 45;
+    return `Shake for ${secs} seconds`;
+  }
+  if (draft.type === 'WALK') {
+    const steps = draft.level === 'EASY' ? 50 : draft.level === 'MEDIUM' ? 100 : 200;
+    return `Walk ${steps} steps`;
+  }
+  if (draft.type === 'BUTTON') return 'Tap the dismiss button';
+  if (draft.type === 'QR_CODE') return 'Scan the registered QR code';
+  if (draft.type === 'NFC') return 'Tap the registered NFC tag';
+  if (draft.type === 'PHOTO_MATCH') return 'Photograph the registered spot';
+  return '';
+}
+
+function ChallengeGridCard({ type, onPress }: { type: ActionType; onPress: () => void }) {
+  const { t } = useTranslation();
+  const card = t.challenges.cards[type];
   return (
     <Pressable
       onPress={onPress}
-      className={`rounded-lg px-3 py-1.5 ${active ? activeBg : 'bg-muted'}`}
+      style={{ width: '48%', margin: '1%' }}
+      className="rounded-2xl border border-border bg-card p-4 active:opacity-70"
     >
-      <Text className={`text-xs font-semibold ${active ? activeText : 'text-muted-foreground'}`}>
-        {label}
+      <Text className="mb-2 text-3xl">{CHALLENGE_ICON[type]}</Text>
+      <Text className="mb-1 text-sm font-bold text-foreground" numberOfLines={1}>
+        {card?.name ?? type}
+      </Text>
+      <Text className="text-xs text-muted-foreground" numberOfLines={2}>
+        {card?.tagline ?? ''}
       </Text>
     </Pressable>
   );
 }
 
-function ActionRow({
+function LevelPills<T extends string>({
+  levels,
+  current,
+  getLabel,
+  onChange,
+}: {
+  levels: T[];
+  current: T;
+  getLabel: (l: T) => string;
+  onChange: (l: T) => void;
+}) {
+  return (
+    <View className="flex-row flex-wrap gap-2">
+      {levels.map((l) => (
+        <Pressable
+          key={l}
+          onPress={() => onChange(l)}
+          className={`rounded-xl px-4 py-2 ${current === l ? 'bg-primary' : 'bg-muted'}`}
+        >
+          <Text className={`text-xs font-bold ${current === l ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
+            {getLabel(l)}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function AddedChallengeRow({
   action,
   index,
   total,
+  onEdit,
   onMoveUp,
   onMoveDown,
   onDelete,
-  onChange,
 }: {
   action: DraftAction;
   index: number;
   total: number;
+  onEdit: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDelete: () => void;
-  onChange: (action: DraftAction) => void;
 }) {
   const { t } = useTranslation();
+  const card = t.challenges.cards[action.type];
+  const levelText = 'level' in action ? (action as { level: string }).level : null;
+
+  return (
+    <Pressable
+      onPress={onEdit}
+      className="mb-2 flex-row items-center rounded-2xl border border-border bg-card px-4 py-3 active:opacity-70"
+    >
+      <Text className="mr-3 text-2xl">{CHALLENGE_ICON[action.type]}</Text>
+      <View className="flex-1">
+        <Text className="text-sm font-semibold text-foreground">{card?.name ?? action.type}</Text>
+        {levelText && (
+          <Text className="text-xs capitalize text-muted-foreground">{levelText.toLowerCase()}</Text>
+        )}
+      </View>
+      <View className="flex-row items-center gap-1">
+        {index > 0 && (
+          <Pressable onPress={onMoveUp} className="rounded-lg bg-muted px-2 py-1.5">
+            <Text className="text-xs text-muted-foreground">↑</Text>
+          </Pressable>
+        )}
+        {index < total - 1 && (
+          <Pressable onPress={onMoveDown} className="rounded-lg bg-muted px-2 py-1.5">
+            <Text className="text-xs text-muted-foreground">↓</Text>
+          </Pressable>
+        )}
+        <Pressable onPress={onDelete} className="rounded-lg bg-destructive/10 px-2 py-1.5">
+          <Text className="text-xs font-bold text-destructive">✕</Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
+
+function ChallengePickerModal({
+  visible,
+  initialDraft,
+  onConfirm,
+  onClose,
+}: {
+  visible: boolean;
+  initialDraft: DraftAction | null;
+  onConfirm: (draft: DraftAction) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [step, setStep] = useState<'grid' | 'config'>('grid');
+  const [draft, setDraft] = useState<DraftAction>({ type: 'MATH', level: 'MEDIUM' });
+
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [showQrScanner, setShowQrScanner] = useState(false);
   const qrScannedRef = useRef(false);
@@ -336,6 +465,22 @@ function ActionRow({
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const photoCameraRef = useRef<CameraView>(null);
   const photoCapRef = useRef(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (initialDraft) {
+      setDraft(initialDraft);
+      setStep('config');
+    } else {
+      setDraft({ type: 'MATH', level: 'MEDIUM' });
+      setStep('grid');
+    }
+  }, [visible]);
+
+  function selectType(type: ActionType) {
+    setDraft(defaultDraft(type));
+    setStep('config');
+  }
 
   async function openQrScanner() {
     if (!cameraPermission?.granted) {
@@ -364,7 +509,7 @@ function ActionRow({
 
   function confirmPhoto() {
     if (!previewUri) return;
-    onChange({ type: 'PHOTO_MATCH', photoUri: previewUri });
+    setDraft({ type: 'PHOTO_MATCH', photoUri: previewUri });
     setPreviewUri(null);
     setShowPhotoCamera(false);
   }
@@ -395,7 +540,7 @@ function ActionRow({
       const tagId = (tag?.id ?? '').toLowerCase();
       await NfcManager.cancelTechnologyRequest().catch(() => {});
       if (tagId) {
-        onChange({ type: 'NFC', nfcTagId: tagId });
+        setDraft({ type: 'NFC', nfcTagId: tagId });
       } else {
         Alert.alert(t.alarmEdit.error, t.alarmEdit.nfcReadError);
       }
@@ -418,394 +563,353 @@ function ActionRow({
       allowsEditing: false,
       quality: 0.8,
     });
-    if (!result.canceled && action.type === 'PUZZLE') {
-      onChange({ ...action, imageUri: result.assets[0].uri });
+    if (!result.canceled && draft.type === 'PUZZLE') {
+      setDraft({ ...draft, imageUri: result.assets[0].uri });
     }
   }
 
+  const card = t.challenges.cards[draft.type];
+
   return (
-    <View className="mb-3 overflow-hidden rounded-2xl border border-border bg-card">
-      {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-border bg-muted/40 px-4 py-2.5">
-        <Text className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          {t.alarmEdit.challengeHeader(index + 1)}
-        </Text>
-        <View className="flex-row items-center gap-2">
-          {index > 0 && (
-            <Pressable onPress={onMoveUp} className="rounded-lg bg-muted px-2 py-1">
-              <Text className="text-xs font-bold text-muted-foreground">UP</Text>
-            </Pressable>
-          )}
-          {index < total - 1 && (
-            <Pressable onPress={onMoveDown} className="rounded-lg bg-muted px-2 py-1">
-              <Text className="text-xs font-bold text-muted-foreground">DN</Text>
-            </Pressable>
-          )}
-          <Pressable onPress={onDelete} className="rounded-lg bg-destructive/10 px-2 py-1">
-            <Text className="text-xs font-bold text-destructive">X</Text>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-background">
+        {/* Header */}
+        <View className="flex-row items-center border-b border-border px-4 pb-4 pt-12">
+          <Pressable
+            onPress={step === 'config' && !initialDraft ? () => setStep('grid') : onClose}
+            className="mr-3 rounded-xl p-2"
+          >
+            <Text className="text-xl text-foreground">←</Text>
           </Pressable>
-        </View>
-      </View>
-
-      <View className="p-4">
-        {/* Type selector */}
-        <View className="flex-row flex-wrap gap-2">
-          {(['BUTTON', 'MATH', 'PUZZLE', 'TYPE_TEXT', 'SHAKE', 'WALK', 'QR_CODE', 'NFC', 'PHOTO_MATCH'] as const).map((t_type) => (
-            <ChipButton
-              key={t_type}
-              label={t_type === 'TYPE_TEXT' ? 'TEXT' : t_type === 'QR_CODE' ? 'QR' : t_type === 'PHOTO_MATCH' ? 'PHOTO' : t_type}
-              active={action.type === t_type}
-              variant="type"
-              onPress={() => {
-                if (t_type === 'BUTTON') onChange({ type: 'BUTTON' });
-                if (t_type === 'MATH') onChange({ type: 'MATH', level: 'EASY' });
-                if (t_type === 'PUZZLE') onChange({ type: 'PUZZLE', level: 'EASY', imageUri: null, customRows: 3, customCols: 3 });
-                if (t_type === 'TYPE_TEXT') onChange({ type: 'TYPE_TEXT', level: 'EASY', customWordCount: 15 });
-                if (t_type === 'SHAKE') onChange({ type: 'SHAKE', level: 'EASY', customSeconds: 30 });
-                if (t_type === 'WALK') onChange({ type: 'WALK', level: 'EASY' });
-                if (t_type === 'QR_CODE') onChange({ type: 'QR_CODE', qrCodeValue: null });
-                if (t_type === 'NFC') onChange({ type: 'NFC', nfcTagId: null });
-                if (t_type === 'PHOTO_MATCH') onChange({ type: 'PHOTO_MATCH', photoUri: null });
-              }}
-            />
-          ))}
-        </View>
-        <View className="my-3 border-t border-border" />
-
-        {/* MATH levels */}
-        {action.type === 'MATH' && (
-          <View className="flex-row flex-wrap gap-2">
-            {MATH_LEVELS.map((level) => (
-              <ChipButton
-                key={level}
-                label={t.alarmEdit.mathLevels[level] ?? level}
-                active={action.level === level}
-                onPress={() => onChange({ type: 'MATH', level })}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* PUZZLE levels + image */}
-        {action.type === 'PUZZLE' && (
-          <>
-            <View className="mb-3 flex-row flex-wrap gap-2">
-              {PUZZLE_LEVELS.map((level) => (
-                <ChipButton
-                  key={level}
-                  label={t.alarmEdit.puzzleLevels[level] ?? level}
-                  active={action.level === level}
-                  onPress={() => onChange({ ...action, level, customRows: action.customRows, customCols: action.customCols })}
-                />
-              ))}
-            </View>
-            {action.level === 'CUSTOM' && (
-              <View className="mb-3 rounded-xl bg-muted p-4 gap-4">
-                <GridStepper
-                  label={t.alarmEdit.rows}
-                  value={action.customRows}
-                  min={2}
-                  max={8}
-                  onChange={(v) => onChange({ ...action, customRows: v })}
-                />
-                <GridStepper
-                  label={t.alarmEdit.cols}
-                  value={action.customCols}
-                  min={2}
-                  max={6}
-                  onChange={(v) => onChange({ ...action, customCols: v })}
-                />
-                <Text className="text-center text-xs text-muted-foreground">
-                  {t.alarmEdit.tiles(action.customRows * action.customCols)}
-                </Text>
-              </View>
-            )}
-            {action.imageUri && (
-              <View className="mb-2">
-                <Image
-                  source={{ uri: action.imageUri }}
-                  style={{ width: '100%', height: 128, borderRadius: 12 }}
-                  resizeMode="cover"
-                />
-              </View>
-            )}
-            <Pressable
-              onPress={pickImage}
-              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
-            >
-              <Text className="text-center text-sm text-muted-foreground">
-                {action.imageUri ? t.alarmEdit.changeImage : t.alarmEdit.chooseImage}
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-        {/* TYPE_TEXT levels */}
-        {action.type === 'TYPE_TEXT' && (
-          <>
-            <View className="mb-3 flex-row flex-wrap gap-2">
-              {TYPE_TEXT_LEVELS.map((level) => (
-                <ChipButton
-                  key={level}
-                  label={t.alarmEdit.typeTextLevels[level] ?? level}
-                  active={action.level === level}
-                  onPress={() => onChange({ ...action, level })}
-                />
-              ))}
-            </View>
-            {action.level === 'CUSTOM' && (
-              <View className="mb-3 rounded-xl bg-muted p-4">
-                <GridStepper
-                  label={t.alarmEdit.words}
-                  value={action.customWordCount}
-                  min={5}
-                  max={150}
-                  step={5}
-                  unit={t.alarmEdit.words}
-                  onChange={(v) => onChange({ ...action, customWordCount: v })}
-                />
-              </View>
-            )}
-          </>
-        )}
-
-        {/* SHAKE levels */}
-        {action.type === 'SHAKE' && (
-          <>
-            <View className="mb-3 flex-row flex-wrap gap-2">
-              {SHAKE_LEVELS.map((level) => (
-                <ChipButton
-                  key={level}
-                  label={t.alarmEdit.shakeLevels[level] ?? level}
-                  active={action.level === level}
-                  onPress={() => onChange({ ...action, level })}
-                />
-              ))}
-            </View>
-            {action.level === 'CUSTOM' && (
-              <View className="mb-3 rounded-xl bg-muted p-4">
-                <GridStepper
-                  label={t.alarmEdit.duration}
-                  value={action.customSeconds}
-                  min={5}
-                  max={300}
-                  step={5}
-                  unit="sec"
-                  onChange={(v) => onChange({ ...action, customSeconds: v })}
-                />
-              </View>
-            )}
-          </>
-        )}
-
-        {/* WALK levels */}
-        {action.type === 'WALK' && (
-          <View className="flex-row flex-wrap gap-2">
-            {WALK_LEVELS.map((level) => (
-              <ChipButton
-                key={level}
-                label={t.alarmEdit.walkLevels[level] ?? level}
-                active={action.level === level}
-                onPress={() => onChange({ type: 'WALK', level })}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* BUTTON description */}
-        {action.type === 'BUTTON' && (
-          <Text className="text-sm text-muted-foreground">
-            {t.alarmEdit.buttonDesc}
+          <Text className="text-lg font-bold text-foreground">
+            {step === 'grid' ? 'Choose a Challenge' : card?.name ?? draft.type}
           </Text>
-        )}
+        </View>
 
-        {/* NFC tag setup */}
-        {action.type === 'NFC' && (
-          <>
-            {action.nfcTagId ? (
-              <Text className="mb-3 text-sm text-green-500">
-                {t.alarmEdit.nfcSaved}
-              </Text>
-            ) : (
-              <Text className="mb-3 text-sm text-muted-foreground">
-                {t.alarmEdit.nfcScanHint}
-              </Text>
-            )}
-            <Pressable
-              onPress={scanNfcTag}
-              disabled={nfcScanning}
-              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
-            >
-              <Text className="text-center text-sm text-muted-foreground">
-                {nfcScanning
-                  ? t.alarmEdit.nfcScanning
-                  : action.nfcTagId
-                    ? t.alarmEdit.nfcScanDiff
-                    : t.alarmEdit.nfcScan}
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-        {/* QR_CODE scan setup */}
-        {action.type === 'QR_CODE' && (
-          <>
-            {action.qrCodeValue ? (
-              <Text className="mb-3 text-sm text-green-500">
-                {t.alarmEdit.qrSaved}
-              </Text>
-            ) : (
-              <Text className="mb-3 text-sm text-muted-foreground">
-                {t.alarmEdit.qrScanHint}
-              </Text>
-            )}
-            <Pressable
-              onPress={openQrScanner}
-              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
-            >
-              <Text className="text-center text-sm text-muted-foreground">
-                {action.qrCodeValue ? t.alarmEdit.qrScanDiff : t.alarmEdit.qrScan}
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-        {/* PHOTO_MATCH setup */}
-        {action.type === 'PHOTO_MATCH' && (
-          <>
-            {action.photoUri ? (
-              <View className="mb-2">
-                <Image
-                  source={{ uri: action.photoUri }}
-                  style={{ width: '100%', height: 128, borderRadius: 12 }}
-                  resizeMode="cover"
-                />
-                <Text className="mt-2 text-sm text-green-500">
-                  {t.alarmEdit.photoSaved}
-                </Text>
+        {step === 'grid' ? (
+          <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 48 }}>
+            <View className="flex-row flex-wrap">
+              {PICKER_TYPES.map((type) => (
+                <ChallengeGridCard key={type} type={type} onPress={() => selectType(type)} />
+              ))}
+            </View>
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+            {/* Icon + name */}
+            <View className="mb-6 items-center">
+              <View className="mb-3 h-20 w-20 items-center justify-center rounded-2xl border border-border bg-card">
+                <Text className="text-4xl">{CHALLENGE_ICON[draft.type]}</Text>
               </View>
-            ) : (
-              <Text className="mb-3 text-sm text-muted-foreground">
-                {t.alarmEdit.photoHint}
+              <Text className="text-xl font-bold text-foreground">{card?.name ?? draft.type}</Text>
+            </View>
+
+            {/* Preview */}
+            <View className="mb-6 rounded-2xl border border-border bg-card p-5">
+              <Text className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Preview
               </Text>
-            )}
+              <Text className="text-center text-base font-semibold text-foreground">
+                {getChallengePreview(draft)}
+              </Text>
+            </View>
+
+            {/* Config */}
+            <View className="mb-6 gap-4 rounded-2xl border border-border bg-card p-4">
+              {draft.type === 'MATH' && (
+                <>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Difficulty</Text>
+                  <LevelPills
+                    levels={MATH_LEVELS}
+                    current={draft.level}
+                    getLabel={(l) => t.alarmEdit.mathLevels[l] ?? l}
+                    onChange={(level) => setDraft({ type: 'MATH', level })}
+                  />
+                </>
+              )}
+
+              {draft.type === 'PUZZLE' && (
+                <>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Difficulty</Text>
+                  <LevelPills
+                    levels={PUZZLE_LEVELS}
+                    current={draft.level}
+                    getLabel={(l) => t.alarmEdit.puzzleLevels[l] ?? l}
+                    onChange={(level) => setDraft({ ...draft, level })}
+                  />
+                  {draft.level === 'CUSTOM' && (
+                    <View className="gap-4 rounded-xl bg-muted p-4">
+                      <GridStepper
+                        label={t.alarmEdit.rows}
+                        value={draft.customRows}
+                        min={2}
+                        max={8}
+                        onChange={(v) => setDraft({ ...draft, customRows: v })}
+                      />
+                      <GridStepper
+                        label={t.alarmEdit.cols}
+                        value={draft.customCols}
+                        min={2}
+                        max={6}
+                        onChange={(v) => setDraft({ ...draft, customCols: v })}
+                      />
+                    </View>
+                  )}
+                  {draft.imageUri && (
+                    <Image
+                      source={{ uri: draft.imageUri }}
+                      style={{ width: '100%', height: 120, borderRadius: 12 }}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <Pressable
+                    onPress={pickImage}
+                    className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+                  >
+                    <Text className="text-center text-sm text-muted-foreground">
+                      {draft.imageUri ? t.alarmEdit.changeImage : t.alarmEdit.chooseImage}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+
+              {draft.type === 'TYPE_TEXT' && (
+                <>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Difficulty</Text>
+                  <LevelPills
+                    levels={TYPE_TEXT_LEVELS}
+                    current={draft.level}
+                    getLabel={(l) => t.alarmEdit.typeTextLevels[l] ?? l}
+                    onChange={(level) => setDraft({ ...draft, level })}
+                  />
+                  {draft.level === 'CUSTOM' && (
+                    <View className="rounded-xl bg-muted p-4">
+                      <GridStepper
+                        label={t.alarmEdit.words}
+                        value={draft.customWordCount}
+                        min={5}
+                        max={150}
+                        step={5}
+                        onChange={(v) => setDraft({ ...draft, customWordCount: v })}
+                      />
+                    </View>
+                  )}
+                </>
+              )}
+
+              {draft.type === 'SHAKE' && (
+                <>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Difficulty</Text>
+                  <LevelPills
+                    levels={SHAKE_LEVELS}
+                    current={draft.level}
+                    getLabel={(l) => t.alarmEdit.shakeLevels[l] ?? l}
+                    onChange={(level) => setDraft({ ...draft, level })}
+                  />
+                  {draft.level === 'CUSTOM' && (
+                    <View className="rounded-xl bg-muted p-4">
+                      <GridStepper
+                        label={t.alarmEdit.duration}
+                        value={draft.customSeconds}
+                        min={5}
+                        max={300}
+                        step={5}
+                        unit="sec"
+                        onChange={(v) => setDraft({ ...draft, customSeconds: v })}
+                      />
+                    </View>
+                  )}
+                </>
+              )}
+
+              {draft.type === 'WALK' && (
+                <>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Difficulty</Text>
+                  <LevelPills
+                    levels={WALK_LEVELS}
+                    current={draft.level}
+                    getLabel={(l) => t.alarmEdit.walkLevels[l] ?? l}
+                    onChange={(level) => setDraft({ type: 'WALK', level })}
+                  />
+                </>
+              )}
+
+              {draft.type === 'BUTTON' && (
+                <Text className="text-sm text-muted-foreground">{t.alarmEdit.buttonDesc}</Text>
+              )}
+
+              {draft.type === 'NFC' && (
+                <>
+                  {draft.nfcTagId ? (
+                    <Text className="text-sm text-green-500">{t.alarmEdit.nfcSaved}</Text>
+                  ) : (
+                    <Text className="text-sm text-muted-foreground">{t.alarmEdit.nfcScanHint}</Text>
+                  )}
+                  <Pressable
+                    onPress={scanNfcTag}
+                    disabled={nfcScanning}
+                    className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+                  >
+                    <Text className="text-center text-sm text-muted-foreground">
+                      {nfcScanning ? t.alarmEdit.nfcScanning : draft.nfcTagId ? t.alarmEdit.nfcScanDiff : t.alarmEdit.nfcScan}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+
+              {draft.type === 'QR_CODE' && (
+                <>
+                  {draft.qrCodeValue ? (
+                    <Text className="text-sm text-green-500">{t.alarmEdit.qrSaved}</Text>
+                  ) : (
+                    <Text className="text-sm text-muted-foreground">{t.alarmEdit.qrScanHint}</Text>
+                  )}
+                  <Pressable
+                    onPress={openQrScanner}
+                    className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+                  >
+                    <Text className="text-center text-sm text-muted-foreground">
+                      {draft.qrCodeValue ? t.alarmEdit.qrScanDiff : t.alarmEdit.qrScan}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+
+              {draft.type === 'PHOTO_MATCH' && (
+                <>
+                  {draft.photoUri ? (
+                    <>
+                      <Image
+                        source={{ uri: draft.photoUri }}
+                        style={{ width: '100%', height: 120, borderRadius: 12 }}
+                        resizeMode="cover"
+                      />
+                      <Text className="text-sm text-green-500">{t.alarmEdit.photoSaved}</Text>
+                    </>
+                  ) : (
+                    <Text className="text-sm text-muted-foreground">{t.alarmEdit.photoHint}</Text>
+                  )}
+                  <Pressable
+                    onPress={openPhotoCamera}
+                    className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+                  >
+                    <Text className="text-center text-sm text-muted-foreground">
+                      {draft.photoUri ? t.alarmEdit.photoRetake : t.alarmEdit.photoTake}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+
+            {/* Confirm */}
             <Pressable
-              onPress={openPhotoCamera}
-              className="rounded-xl border border-dashed border-border py-3 active:opacity-70"
+              onPress={() => onConfirm(draft)}
+              className="items-center rounded-2xl bg-primary py-4 active:opacity-80"
             >
-              <Text className="text-center text-sm text-muted-foreground">
-                {action.photoUri ? t.alarmEdit.photoRetake : t.alarmEdit.photoTake}
+              <Text className="text-base font-bold text-primary-foreground">
+                {initialDraft ? t.alarmEdit.saveChanges : 'Add Challenge'}
               </Text>
             </Pressable>
-          </>
+          </ScrollView>
         )}
-      </View>
 
-      {/* Photo camera modal */}
-      {action.type === 'PHOTO_MATCH' && (
-        <Modal
-          visible={showPhotoCamera}
-          animationType="slide"
-          onRequestClose={() => { setShowPhotoCamera(false); setPreviewUri(null); }}
-        >
-          <View className="flex-1 bg-black">
-            {!previewUri ? (
-              <>
-                <CameraView ref={photoCameraRef} style={{ flex: 1 }} facing="back" />
-                <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
-                  <Text className="mb-5 text-base text-white/70">
-                    {t.alarmEdit.pointAtPlace}
-                  </Text>
-                  <View className="flex-row items-center gap-8">
-                    <Pressable
-                      onPress={() => setShowPhotoCamera(false)}
-                      className="rounded-full bg-white/20 px-6 py-3"
-                    >
-                      <Text className="font-semibold text-white">{t.alarmEdit.cancel}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={capturePhoto}
-                      style={{
-                        width: 72,
-                        height: 72,
-                        borderRadius: 36,
-                        borderWidth: 4,
-                        borderColor: 'white',
-                        backgroundColor: 'rgba(255,255,255,0.3)',
-                      }}
-                    />
+        {/* Photo camera modal */}
+        {draft.type === 'PHOTO_MATCH' && (
+          <Modal
+            visible={showPhotoCamera}
+            animationType="slide"
+            onRequestClose={() => { setShowPhotoCamera(false); setPreviewUri(null); }}
+          >
+            <View className="flex-1 bg-black">
+              {!previewUri ? (
+                <>
+                  <CameraView ref={photoCameraRef} style={{ flex: 1 }} facing="back" />
+                  <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
+                    <Text className="mb-5 text-base text-white/70">{t.alarmEdit.pointAtPlace}</Text>
+                    <View className="flex-row items-center gap-8">
+                      <Pressable
+                        onPress={() => setShowPhotoCamera(false)}
+                        className="rounded-full bg-white/20 px-6 py-3"
+                      >
+                        <Text className="font-semibold text-white">{t.alarmEdit.cancel}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={capturePhoto}
+                        style={{
+                          width: 72, height: 72, borderRadius: 36,
+                          borderWidth: 4, borderColor: 'white',
+                          backgroundColor: 'rgba(255,255,255,0.3)',
+                        }}
+                      />
+                    </View>
                   </View>
-                </View>
-              </>
-            ) : (
-              <>
-                <Image source={{ uri: previewUri }} style={{ flex: 1 }} resizeMode="cover" />
-                <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
-                  <Text className="mb-5 text-base text-white/70">{t.alarmEdit.photoConfirmPrompt}</Text>
-                  <View className="flex-row gap-4">
-                    <Pressable
-                      onPress={() => setPreviewUri(null)}
-                      className="rounded-full bg-white/20 px-8 py-4"
-                    >
-                      <Text className="font-semibold text-white">{t.alarmEdit.retake}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={confirmPhoto}
-                      className="rounded-full bg-primary px-8 py-4"
-                    >
-                      <Text className="font-semibold text-primary-foreground">{t.alarmEdit.confirm}</Text>
-                    </Pressable>
+                </>
+              ) : (
+                <>
+                  <Image source={{ uri: previewUri }} style={{ flex: 1 }} resizeMode="cover" />
+                  <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
+                    <Text className="mb-5 text-base text-white/70">{t.alarmEdit.photoConfirmPrompt}</Text>
+                    <View className="flex-row gap-4">
+                      <Pressable
+                        onPress={() => setPreviewUri(null)}
+                        className="rounded-full bg-white/20 px-8 py-4"
+                      >
+                        <Text className="font-semibold text-white">{t.alarmEdit.retake}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={confirmPhoto}
+                        className="rounded-full bg-primary px-8 py-4"
+                      >
+                        <Text className="font-semibold text-primary-foreground">{t.alarmEdit.confirm}</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                </View>
-              </>
-            )}
-          </View>
-        </Modal>
-      )}
+                </>
+              )}
+            </View>
+          </Modal>
+        )}
 
-      {/* QR scanner modal */}
-      {action.type === 'QR_CODE' && (
-        <Modal
-          visible={showQrScanner}
-          animationType="slide"
-          onRequestClose={() => setShowQrScanner(false)}
-        >
-          <View className="flex-1 bg-black">
-            <CameraView
-              style={{ flex: 1 }}
-              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-              onBarcodeScanned={({ data }) => {
-                if (qrScannedRef.current) return;
-                qrScannedRef.current = true;
-                onChange({ type: 'QR_CODE', qrCodeValue: data });
-                setShowQrScanner(false);
-              }}
-            />
-            <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
-              <View
-                style={{
-                  width: 240,
-                  height: 240,
-                  borderWidth: 3,
-                  borderColor: 'white',
-                  borderRadius: 16,
-                  backgroundColor: 'transparent',
+        {/* QR scanner modal */}
+        {draft.type === 'QR_CODE' && (
+          <Modal
+            visible={showQrScanner}
+            animationType="slide"
+            onRequestClose={() => setShowQrScanner(false)}
+          >
+            <View className="flex-1 bg-black">
+              <CameraView
+                style={{ flex: 1 }}
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={({ data }) => {
+                  if (qrScannedRef.current) return;
+                  qrScannedRef.current = true;
+                  setDraft({ type: 'QR_CODE', qrCodeValue: data });
+                  setShowQrScanner(false);
                 }}
               />
+              <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+                <View
+                  style={{
+                    width: 240, height: 240, borderWidth: 3,
+                    borderColor: 'white', borderRadius: 16, backgroundColor: 'transparent',
+                  }}
+                />
+              </View>
+              <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
+                <Text className="mb-4 text-base text-white/70">{t.alarmEdit.pointAtQr}</Text>
+                <Pressable
+                  onPress={() => setShowQrScanner(false)}
+                  className="rounded-full bg-white/20 px-10 py-4"
+                >
+                  <Text className="font-semibold text-white">{t.alarmEdit.cancel}</Text>
+                </Pressable>
+              </View>
             </View>
-            <View className="absolute bottom-0 left-0 right-0 items-center pb-10">
-              <Text className="mb-4 text-base text-white/70">{t.alarmEdit.pointAtQr}</Text>
-              <Pressable
-                onPress={() => setShowQrScanner(false)}
-                className="rounded-full bg-white/20 px-10 py-4"
-              >
-                <Text className="font-semibold text-white">{t.alarmEdit.cancel}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-      )}
-    </View>
+          </Modal>
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -821,7 +925,9 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
   const [hour12, setHour12] = useState(7);
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
   const [minute, setMinute] = useState(0);
-  const [actions, setActions] = useState<DraftAction[]>([{ type: 'BUTTON' }]);
+  const [actions, setActions] = useState<DraftAction[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [ringtoneUri, setRingtoneUri] = useState<string | null>(null);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
   const [flashlightEnabled, setFlashlightEnabled] = useState(false);
@@ -907,15 +1013,7 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
     setActions(next);
   }
 
-  function addAction() {
-    setActions([...actions, { type: 'BUTTON' }]);
-  }
-
   function deleteAction(index: number) {
-    if (actions.length === 1) {
-      Alert.alert(t.alarmEdit.cannotRemove, t.alarmEdit.cannotRemoveDesc);
-      return;
-    }
     setActions(actions.filter((_, i) => i !== index));
   }
 
@@ -925,9 +1023,33 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
     setActions(next);
   }
 
+  function openPickerForAdd() {
+    setEditingIndex(null);
+    setPickerOpen(true);
+  }
+
+  function openPickerForEdit(index: number) {
+    setEditingIndex(index);
+    setPickerOpen(true);
+  }
+
+  function handlePickerConfirm(action: DraftAction) {
+    if (editingIndex !== null) {
+      updateAction(editingIndex, action);
+    } else {
+      setActions([...actions, action]);
+    }
+    setPickerOpen(false);
+    setEditingIndex(null);
+  }
+
   async function handleSave() {
     if (!days.size) {
       Alert.alert(t.alarmEdit.selectDay, t.alarmEdit.selectDayDesc);
+      return;
+    }
+    if (actions.length === 0) {
+      Alert.alert('No challenge', 'Add at least one challenge before saving.');
       return;
     }
 
@@ -1091,29 +1213,37 @@ export function AlarmEditScreen({ alarmId }: { alarmId: string | null }) {
 
       {/* Challenges */}
       <View className="mb-6">
-        <View className="mb-3 flex-row items-center justify-between">
-          <SectionLabel>{t.alarmEdit.challengesLabel(actions.length)}</SectionLabel>
-          <Pressable
-            onPress={addAction}
-            className="flex-row items-center gap-1 rounded-xl bg-primary px-3 py-1.5 active:opacity-80"
-          >
-            <Text className="text-xs font-bold text-primary-foreground">{t.alarmEdit.addChallenge}</Text>
-          </Pressable>
-        </View>
+        <SectionLabel>
+          {actions.length > 0 ? t.alarmEdit.challengesLabel(actions.length) : 'Challenge'}
+        </SectionLabel>
 
         {actions.map((action, i) => (
-          <ActionRow
+          <AddedChallengeRow
             key={i}
             action={action}
             index={i}
             total={actions.length}
+            onEdit={() => openPickerForEdit(i)}
             onMoveUp={() => moveAction(i, i - 1)}
             onMoveDown={() => moveAction(i, i + 1)}
             onDelete={() => deleteAction(i)}
-            onChange={(a) => updateAction(i, a)}
           />
         ))}
+
+        <Pressable
+          onPress={openPickerForAdd}
+          className="mt-1 flex-row items-center justify-center rounded-2xl border border-dashed border-border py-4 active:opacity-70"
+        >
+          <Text className="text-sm font-bold text-primary">+ ADD A CHALLENGE</Text>
+        </Pressable>
       </View>
+
+      <ChallengePickerModal
+        visible={pickerOpen}
+        initialDraft={editingIndex !== null ? actions[editingIndex] ?? null : null}
+        onConfirm={handlePickerConfirm}
+        onClose={() => { setPickerOpen(false); setEditingIndex(null); }}
+      />
 
       {/* Save */}
       <Pressable

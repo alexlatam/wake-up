@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, Switch, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAlarms } from '@/presentation/hooks/useAlarms';
 import { useAlarmPermissions } from '@/presentation/hooks/useAlarmPermissions';
@@ -128,6 +129,7 @@ function PermissionBanner({
 export function AlarmListScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { alarms, loading, toggle, remove, refresh: refreshAlarms } = useAlarms();
   const {
     notifications: hasNotifPermission,
@@ -213,7 +215,7 @@ export function AlarmListScreen() {
       <FlatList
         data={alarms}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 88 + insets.bottom }}
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center py-32">
             <Text className="text-5xl">⏰</Text>
@@ -233,7 +235,7 @@ export function AlarmListScreen() {
       />
 
       {/* FAB */}
-      <View className="absolute bottom-8 right-6">
+      <View className="absolute right-6" style={{ bottom: 32 + insets.bottom }}>
         <Pressable
           onPress={() => router.push('/alarm/new')}
           className="h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg active:opacity-80"
